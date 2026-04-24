@@ -1,95 +1,142 @@
-# KadampaScreenSaver - Installation and Configuration Guide
-Pulls large images from wordpress site, kadampa.org/news
+# SitePix
 
-## Overview
+Pulls large photos from WordPress-style news blogs and drops them into a
+folder your OS screen saver (or desktop slideshow) can point at. Runs on
+**Windows, macOS, and Linux**.
 
-This application automatically downloads images from specific web pages, applies text overlays (such as titles, dates, and descriptions), and manages these images based on defined policies. It runs on **Windows, macOS, and Linux**.
+Originally built to gather news imagery from kadampa.org — now
+configurable via JSON profiles so the same engine can feed off any
+WordPress site with dated permalinks and standard `<article>` /
+OpenGraph conventions.
 
 ## Requirements
+- [.NET 10 Runtime or SDK](https://dotnet.microsoft.com/download)
+- Internet access
+- **Windows**: Microsoft Edge (used by Playwright for scraping)
+- **macOS / Linux**: Playwright's bundled Chromium (installed once via
+  `playwright install chromium`)
 
-- .NET 10 Runtime or SDK.
-- An internet connection for downloading images.
-- Basic understanding of JSON configuration (for setting up `appsettings.json`).
-- **Windows**: Microsoft Edge (used by Playwright for scraping).
-- **macOS / Linux**: Playwright's bundled Chromium is used automatically.
+## Quick start
 
-## Installation Steps
+```bash
+# macOS one-liner (installs .NET, publishes binary, fetches once, opens folder)
+./macos/install.sh --run
+```
 
-1. **Install .NET**: Make sure the .NET 10 Runtime or SDK is installed on your system. Download from the [official Microsoft .NET website](https://dotnet.microsoft.com/download).
+Or manually:
+```bash
+dotnet publish SitePix/SitePix.csproj -c Release -r osx-arm64 --self-contained -o dist/macos
+cd SitePix && playwright install chromium
+./dist/macos/SitePix                              # uses bundled appsettings.json (kadampa)
+./dist/macos/SitePix samples/petapixel.json       # or any other profile
+```
 
-2. **Download Application**: Obtain the application package from the provided source located under Releases on the right.
-
-3. **Extract Files**: Extract the downloaded package to a folder on your computer.
-
-4. **Install Playwright browsers** (first run):
-   ```bash
-   pwsh bin/Debug/net10.0/playwright.ps1 install chromium
-   ```
-
-5. **Run the application**:
-   - **Windows**: `KadampaScreenSaver.exe` — also registers a daily Task Scheduler task automatically.
-   - **macOS**: `./KadampaScreenSaver` — creates a LaunchAgent plist if configured.
-   - **Linux**: `./KadampaScreenSaver` — creates a cron job if configured.
-
-6. **Set up as screensaver**:
-   - **Windows**: Settings > Personalization > Lock screen > Screen saver > Photos. Browse to the configured image directory.
-   - **macOS**: System Settings > Screen Saver. Point to the configured image directory.
-   - **Linux**: Use your desktop environment's screensaver/slideshow settings with the configured image directory.
-
-7. **May Dharma Flourish**.
+Use `osx-x64` on Intel Macs, `win-x64` on Windows, `linux-x64` on Linux.
 
 ## Configuration
 
-Edit `appsettings.json` to control the application's behavior.
+On startup SitePix reads a JSON config. Pick one:
 
-### Basic Configuration
+1. Positional CLI arg — `SitePix path/to/profile.json`
+2. `appsettings.json` next to the binary (default)
 
-- **StartPage**: The URL to scrape for images (default: `https://kadampa.org/news`).
-- **Policies**: Set the depth of links to follow (`LinkDepth`) and the number of days to retain downloaded images (`RetentionDays`).
-- **Directories**: Configure the base directory for saving images (`Base`). Set `UseMyPictures` to `true` to use your Pictures folder (works on all platforms).
-- **PhotoText**: Customize text overlay settings like font (`Font`) and whether to include the image file name or date.
-- **Task Scheduler**: Set `StartTime` (e.g. `"05:30"`) to register a daily scheduled task. Remove or leave empty to skip.
+### Profile schema
 
-### Cross-Platform Notes
-
-| Setting | Windows | macOS | Linux |
-|---------|---------|-------|-------|
-| `Directories:Base` | `d:/temp/` | `/tmp/` or `~/Pictures/` | `/tmp/` or `~/Pictures/` |
-| `PhotoText:Font` | `Palatino Linotype` | `Palatino` | `DejaVu Serif` or `Liberation Serif` |
-| `Directories:UseMyPictures` | `C:\Users\{name}\Pictures` | `~/Pictures` | `~/Pictures` |
-
-### Example Configuration
-
-```json
+```jsonc
 {
   "StartPage": "https://kadampa.org/news",
+
   "Policies": {
-    "LinkDepth": 7,
-    "RetentionDays": 7
+    "LinkDepth": 7,          // max articles per run
+    "RetentionDays": 7       // days to keep downloaded images
   },
+
+  "Scraper": {
+    // Regex matched against each candidate article URL. {Year} is
+    // substituted with the current 4-digit year at runtime.
+    "UrlPattern": "/{Year}/",
+
+    // Minimum image width (pixels). Smaller images are discarded.
+    "MinWidthPx": 1024,
+
+    // Case-insensitive substrings — any image URL containing one of
+    // these is skipped (thumbnails, sponsor logos, etc.).
+    "ImageUrlExcludes": ["150x", "whatsapp-image", "book"],
+
+    // Ordered CSS selectors. The first one that matches on the article
+    // page defines the content scope that <img> tags are pulled from.
+    "ContentSelectors": [
+      "main article .entry-content",
+      "article .entry-content",
+      "main article",
+      "article",
+      "body"
+    ]
+  },
+
   "Task Scheduler": {
-    "StartTime": "05:30"
+    "StartTime": "05:30",    // empty = don't register a scheduled task
+    "Id": "SitePix"          // optional override for task/plist/cron identifier
   },
+
   "Directories": {
     "UseMyPictures": true,
     "PhotoText": true,
-    "SubDirectory": "KadampaScreenSaver"
+    "SubDirectory": "SitePix"
   },
+
   "PhotoText": {
-    "Font": "Palatino Linotype",
+    "Font": "Palatino",
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
-    "RemoveDashKadampaBuddhism": true
+    "BrandColors": ["#224486", "#A99886", "#66B9C4"]
   }
 }
 ```
 
+Sample profiles live in [`samples/`](samples/):
+- [`samples/kadampa.json`](samples/kadampa.json) — Kadampa Buddhist news
+- [`samples/petapixel.json`](samples/petapixel.json) — photography news
+
+### Brand colors
+
+`PhotoText:BrandColors` is an array of hex strings. For each text overlay
+SitePix picks the color with the best contrast against the background it's
+sitting on, then draws an automatic black/white stroke around the glyphs
+for readability over mixed-luminance photos.
+
 ## Scheduling
 
-The application automatically sets up platform-native scheduling when `Task Scheduler:StartTime` is configured:
+Setting `Task Scheduler:StartTime` triggers platform-native scheduling the
+next time SitePix runs:
 
-- **Windows**: Creates a Windows Task Scheduler daily task.
-- **macOS**: Creates a LaunchAgent plist in `~/Library/LaunchAgents/`. You may need to run `launchctl load <path>` to activate it.
-- **Linux**: Adds a cron job to the current user's crontab.
+- **Windows**: registers a daily task in Task Scheduler.
+- **macOS**: writes `~/Library/LaunchAgents/com.sitepix.agent.plist`.
+  Run `launchctl load <path>` once to activate; after that, the agent
+  survives reboots. Multiple profiles use distinct labels via
+  `Task Scheduler:Id`.
+- **Linux**: appends a cron line to the current user's crontab.
+
+## Screen saver setup
+- [`macos/PRD.md`](macos/PRD.md) — macOS end-user walkthrough (Classic
+  slideshow modules, Gatekeeper, Full Disk Access, verification).
+- **Windows**: Settings → Personalization → Lock screen → Screen saver →
+  Photos → browse to the configured image directory.
+- **Linux**: use your desktop environment's slideshow settings.
+
+## Attribution
+
+SitePix is released under [Creative Commons Attribution 4.0](LICENSE).
+If you redistribute, please credit the project and link back.
+
+Scraped images remain the copyright of their original publishers. SitePix
+simply downloads what's publicly available on the configured site; please
+respect each site's terms of service and robots directives.
+
+## Project history
+
+The project started life as KadampaScreenSaver. See [`XPLATFORM.md`](XPLATFORM.md)
+for the cross-platform migration notes (System.Drawing → SkiaSharp,
+dynamic Playwright channel, per-OS scheduling).

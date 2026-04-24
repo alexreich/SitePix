@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — bootstrap KadampaScreenSaver on macOS from a clean machine.
+# install.sh — bootstrap SitePix on macOS from a clean machine.
 #
 # What it does:
 #   1. Installs the .NET 10 SDK into $HOME/.dotnet via Microsoft's official
@@ -15,7 +15,7 @@
 #
 # Run from the repo root:
 #   ./macos/install.sh             # install + build (no run, no LaunchAgent)
-#   ./macos/install.sh --run       # also run once and open ~/Pictures/KadampaScreenSaver
+#   ./macos/install.sh --run       # also run once and open ~/Pictures/SitePix
 #   ./macos/install.sh --schedule  # also enable the daily LaunchAgent at 05:30
 #   ./macos/install.sh --run --schedule
 #
@@ -51,7 +51,7 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-CSPROJ="KadampaScreenSaver/KadampaScreenSaver.csproj"
+CSPROJ="SitePix/SitePix.csproj"
 OUT="dist/macos"
 DOTNET_DIR="$HOME/.dotnet"
 
@@ -100,9 +100,9 @@ fi
 
 # ── 5. First run (optional) ─────────────────────────────────────────────────
 if [ "$DO_RUN" -eq 1 ]; then
-  say "Running KadampaScreenSaver once"
-  (cd "$OUT" && ./KadampaScreenSaver)
-  DEST="$HOME/Pictures/KadampaScreenSaver"
+  say "Running SitePix once"
+  (cd "$OUT" && ./SitePix)
+  DEST="$HOME/Pictures/SitePix"
   if [ -d "$DEST" ]; then
     say "Opening $DEST"
     open "$DEST"
@@ -117,7 +117,7 @@ if [ "$DO_SCHEDULE" -eq 1 ]; then
     -e "s|\"StartTime\": \"\"|\"StartTime\": \"$START_TIME\"|" \
     "$APPSETTINGS"
   # Run once to let TaskRegistration write ~/Library/LaunchAgents/.
-  (cd "$OUT" && ./KadampaScreenSaver) >/dev/null || true
+  (cd "$OUT" && ./SitePix) >/dev/null || true
   PLIST="$HOME/Library/LaunchAgents/com.kadampa.screensaver.plist"
   if [ -f "$PLIST" ]; then
     launchctl unload "$PLIST" 2>/dev/null || true
@@ -130,10 +130,10 @@ if [ "$DO_SCHEDULE" -eq 1 ]; then
 fi
 
 say "Done."
-echo "Binary:  $REPO_ROOT/$OUT/KadampaScreenSaver"
+echo "Binary:  $REPO_ROOT/$OUT/SitePix"
 echo "Config:  $REPO_ROOT/$APPSETTINGS"
-echo "Images:  \$HOME/Pictures/KadampaScreenSaver"
+echo "Images:  \$HOME/Pictures/SitePix"
 echo
 echo "Next:  System Settings → Screen Saver → Classic → a slideshow module"
-echo "       → Options → Choose Folder… → ~/Pictures/KadampaScreenSaver"
+echo "       → Options → Choose Folder… → ~/Pictures/SitePix"
 echo "       (See macos/PRD.md §6.6 for details.)"

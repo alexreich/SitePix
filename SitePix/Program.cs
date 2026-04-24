@@ -1,18 +1,34 @@
-// File: KadampaScreenSaver/Program.cs
+// File: SitePix/Program.cs
 using System;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 using Microsoft.Playwright;
-using KadampaScreenSaver;
+using SitePix;
 using SkiaSharp;
+
+// First positional CLI arg selects a config profile file — e.g.
+// `sitepix samples/petapixel.json`. Otherwise fall back to appsettings.json
+// next to the binary (or in the cwd, which dotnet Configuration searches by default).
+string configPath = "appsettings.json";
+if (args.Length > 0)
+{
+    if (!File.Exists(args[0]))
+    {
+        Console.Error.WriteLine($"Config file not found: {args[0]}");
+        Environment.Exit(1);
+    }
+    configPath = args[0];
+}
 
 HttpClient client = new HttpClient();
 ILogger<Program> logger = null!;
 IConfigurationRoot configuration = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json", true, true)
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile(configPath, optional: true, reloadOnChange: false)
     .Build();
 
 // Cross-platform task scheduling
@@ -21,19 +37,36 @@ TaskRegistration.EnsureDailyTaskIfConfigured(configuration, null);
 int linkDepth = configuration.GetValue<int>("Policies:LinkDepth");
 int retentionDays = configuration.GetValue<int>("Policies:RetentionDays");
 string baseDirectory = configuration.GetValue<string>("Directories:Base") ?? "";
-string subDirectory = configuration.GetValue<string>("Directories:SubDirectory") ?? "KadampaScreenSaver";
+string subDirectory = configuration.GetValue<string>("Directories:SubDirectory") ?? "SitePix";
 string fontName = configuration.GetValue<string>("PhotoText:Font") ?? "sans-serif";
 
-// Define Kadampa brand colors
-List<SKColor> brandColors = new List<SKColor>
-{
-    SKColor.Parse("#224486"), // Dark Blue
-    SKColor.Parse("#A99886"), // Beige
-    SKColor.Parse("#66B9C4"), // Light Blue
-    SKColor.Parse("#358DCB"), // Medium Blue
-    SKColor.Parse("#BE303C"), // Red
-    SKColor.Parse("#48ADF4")  // Sky Blue
-};
+// ─── Scraper config (all site-specific tuning lives here) ────────────────────
+// {Year} is substituted with the current 4-digit year so a profile stays
+// evergreen without being edited every January.
+int currentYear = DateTime.Now.Year;
+string urlPatternRaw = (configuration.GetValue<string>("Scraper:UrlPattern") ?? "/{Year}/")
+    .Replace("{Year}", currentYear.ToString());
+var urlRegex = new Regex(urlPatternRaw, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+string[] imageUrlExcludes = configuration.GetSection("Scraper:ImageUrlExcludes").Get<string[]>()
+    ?? Array.Empty<string>();
+int minWidthPx = configuration.GetValue<int?>("Scraper:MinWidthPx") ?? 1024;
+string[] contentSelectors = configuration.GetSection("Scraper:ContentSelectors").Get<string[]>()
+    ?? new[]
+    {
+        "main article .entry-content",
+        "article .entry-content",
+        "main article",
+        "article",
+        "body"
+    };
+
+// Brand colors for text overlay — configurable per profile, with a neutral
+// fallback set (Kadampa palette) if unspecified.
+List<SKColor> brandColors = (configuration.GetSection("PhotoText:BrandColors").Get<string[]>()
+    ?? new[] { "#224486", "#A99886", "#66B9C4", "#358DCB", "#BE303C", "#48ADF4" })
+    .Select(hex => SKColor.Parse(hex))
+    .ToList();
 
 if (configuration.GetValue<bool>("Directories:UseMyPictures"))
 {
@@ -54,7 +87,12 @@ using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
 
 logger = loggerFactory.CreateLogger<Program>();
 
-string webpageUrl = configuration.GetValue<string>("StartPage") ?? "https://kadampa.org/news";
+string webpageUrl = configuration.GetValue<string>("StartPage") ?? "";
+if (string.IsNullOrWhiteSpace(webpageUrl))
+{
+    Console.Error.WriteLine("StartPage is not configured. Set \"StartPage\" in the config file.");
+    Environment.Exit(1);
+}
 Directory.CreateDirectory(baseDirectory);
 
 // Create UrlLogger instance (store log file in baseDirectory for convenience)
@@ -92,16 +130,14 @@ if (pageUrls.Count == 0)
     return;
 }
 
-// Get the current year
-int currentYear = DateTime.Now.Year;
-logger.LogInformation($"Current year: {currentYear}");
+logger.LogInformation("URL pattern: {Pattern}", urlPatternRaw);
 
 int pageCount = 0;
 // Download images from each page
 foreach (string pageUrl in pageUrls)
 {
-    // Skip pages that do not start with the current year
-    if (!pageUrl.Contains($"/{currentYear}/"))
+    // Skip pages that don't match the configured URL pattern.
+    if (!urlRegex.IsMatch(pageUrl))
     {
         continue;
     }
@@ -121,28 +157,23 @@ foreach (string pageUrl in pageUrls)
         continue;
     }
 
-    // filter out images with certain text in the URL
+    // Filter out images whose URL matches any configured exclude pattern
+    // (case-insensitive substring match).
     var filteredImageUrls = new List<string>();
     foreach (var imageUrl in imageUrls)
     {
-        string imageUrlLower = imageUrl.ToLower();
-
-        if (
-            imageUrl == "" ||
-            imageUrlLower.Contains("150x") ||
-            imageUrlLower.Contains("whatsapp-image") ||
-            imageUrlLower.Contains("paperback") ||
-            imageUrlLower.Contains("book") ||
-            imageUrlLower.Contains("gen-") ||
-            imageUrlLower.Contains("1024x") ||
-            imageUrlLower.Contains("adobestock") ||
-            imageUrlLower.Contains("heic_")
-        )
+        if (string.IsNullOrEmpty(imageUrl)) continue;
+        string imageUrlLower = imageUrl.ToLowerInvariant();
+        bool excluded = false;
+        foreach (var ex in imageUrlExcludes)
         {
-            continue;
+            if (!string.IsNullOrEmpty(ex) && imageUrlLower.Contains(ex.ToLowerInvariant()))
+            {
+                excluded = true;
+                break;
+            }
         }
-
-        filteredImageUrls.Add(imageUrl);
+        if (!excluded) filteredImageUrls.Add(imageUrl);
     }
     var html = await LoadContentAndImagesAsync(pageUrl);
     var doc = new HtmlDocument();
@@ -179,7 +210,7 @@ foreach (string pageUrl in pageUrls)
             using (var memoryStream = new MemoryStream(imageBytes))
             using (var bitmap = SKBitmap.Decode(memoryStream))
             {
-                if (bitmap == null || bitmap.Width < 1024)
+                if (bitmap == null || bitmap.Width < minWidthPx)
                 {
                     deleteImage = true;
                 }
@@ -192,7 +223,7 @@ foreach (string pageUrl in pageUrls)
             if (deleteImage)
             {
                 File.Delete(savePath);
-                logger.LogWarning($"Deleted image: {fileName} because it was smaller than 1024px");
+                logger.LogWarning($"Deleted image: {fileName} because it was smaller than {minWidthPx}px");
             }
             else
             {
@@ -325,9 +356,12 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
     ");
 
     var page = await context.NewPageAsync();
+    // DOMContentLoaded (not NetworkIdle) — ad/tracker-heavy sites like
+    // petapixel.com never reach true network idle. We rely on the
+    // WaitForSelectorAsync + 2 s sleep below to confirm content is ready.
     await page.GotoAsync(url, new PageGotoOptions
     {
-        WaitUntil = WaitUntilState.NetworkIdle,
+        WaitUntil = WaitUntilState.DOMContentLoaded,
         Timeout = 60000
     });
 
@@ -343,14 +377,18 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
         State = WaitForSelectorState.Attached
     });
 
-    var images = await page.EvaluateAsync<string[]>(@"
-        () => {
-            const root =
-                document.querySelector('main article .entry-content') ||
-                document.querySelector('article .entry-content') ||
-                document.querySelector('main article') ||
-                document.querySelector('article') ||
-                document.body;
+    // Ship the configured selector list into the page context so each profile
+    // can aim scraping at a different theme's content container.
+    string selectorsJson = JsonSerializer.Serialize(contentSelectors);
+    var images = await page.EvaluateAsync<string[]>($@"
+        () => {{
+            const selectors = {selectorsJson};
+            let root = null;
+            for (const sel of selectors) {{
+                root = document.querySelector(sel);
+                if (root) break;
+            }}
+            if (!root) root = document.body;
 
             const pickSrc = (img) =>
                 img.currentSrc ||
@@ -373,7 +411,7 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
                 .filter(Boolean);
 
             return Array.from(new Set(urls));
-        }
+        }}
     ");
 
     await browser.CloseAsync();

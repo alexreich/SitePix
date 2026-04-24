@@ -1,5 +1,11 @@
 # Cross-Platform Migration Notes
 
+> **Note:** the project was later renamed from `KadampaScreenSaver` to
+> `SitePix` and generalized to work with any WordPress-style news blog
+> via JSON profiles. This document retains the old name because it
+> describes the historical migration. See [`README.md`](README.md) for
+> the current architecture and [`samples/`](samples/) for profiles.
+
 This document describes the changes made to convert KadampaScreenSaver from a Windows-only application to a cross-platform application (Windows, macOS, Linux).
 
 ## Summary of Changes

@@ -1,8 +1,8 @@
-# KadampaScreenSaver on macOS — Setup PRD
+# SitePix on macOS — Setup PRD
 
 > Companion to [`XPLATFORM.md`](../XPLATFORM.md) and the root
 > [`README.md`](../README.md). This doc focuses on what a macOS end user
-> needs to go from a fresh Mac to a working Kadampa screen saver.
+> needs to go from a fresh Mac to a working SitePix-fed screen saver.
 
 ## 1. Problem
 The project's main deliverable on macOS is the cross-platform .NET
@@ -31,16 +31,17 @@ modules actually accept a custom folder.
   Classic slideshow modules.
 
 ## 4. Users
-- Existing KadampaScreenSaver users migrating from Windows to macOS.
-- New macOS users who want a daily-refreshed Kadampa news slideshow.
+- Existing SitePix users migrating from Windows to macOS.
+- New macOS users who want a daily-refreshed slideshow of imagery from
+  any supported WordPress news blog (see `samples/` for profiles).
 
 ## 5. What actually runs on macOS
 | Piece | Implementation |
 | --- | --- |
-| Executable | `KadampaScreenSaver` native binary produced by `dotnet publish -r osx-arm64 --self-contained` (or `-r osx-x64` on Intel Macs). |
+| Executable | `SitePix` native binary produced by `dotnet publish -r osx-arm64 --self-contained` (or `-r osx-x64` on Intel Macs). |
 | HTML fetch | Playwright with bundled Chromium (`Channel = null` on non-Windows, set in `Program.cs`). |
 | Image drawing | SkiaSharp (cross-platform replacement for `System.Drawing`). |
-| Scheduler | `TaskRegistration.RegisterMacOS()` writes `~/Library/LaunchAgents/com.kadampa.screensaver.plist` on first run, driven by `Task Scheduler:StartTime` in `appsettings.json`. |
+| Scheduler | `TaskRegistration.RegisterMacOS()` writes `~/Library/LaunchAgents/com.sitepix.agent.plist` on first run, driven by `Task Scheduler:StartTime` in `appsettings.json`. |
 | Screen saver | macOS built-in **Classic** slideshow modules (System Settings → Screen Saver). |
 
 ---
@@ -68,14 +69,14 @@ modules actually accept a custom folder.
 ### 6.2 Build the macOS binary
 From the repo root:
 ```bash
-dotnet publish KadampaScreenSaver/KadampaScreenSaver.csproj \
+dotnet publish SitePix/SitePix.csproj \
   -c Release \
   -r osx-arm64 \
   --self-contained \
   -o dist/macos
 ```
 Substitute `osx-x64` on Intel Macs. Output lands in
-`dist/macos/KadampaScreenSaver` alongside `appsettings.json`.
+`dist/macos/SitePix` alongside `appsettings.json`.
 
 ### 6.3 Install Playwright's browser once
 The first time the app runs (or ahead of time), install Chromium for
@@ -88,7 +89,7 @@ export PATH="$HOME/.dotnet:$HOME/.dotnet/tools:$PATH"
 
 # The CLI auto-discovers Playwright from a csproj, so run it from the
 # project directory (not from the publish output):
-cd KadampaScreenSaver
+cd SitePix
 playwright install chromium
 ```
 This drops Chromium into `~/Library/Caches/ms-playwright/`.
@@ -103,38 +104,37 @@ Copy and edit next to the binary in `dist/macos/`:
   "Directories": {
     "UseMyPictures": true,
     "PhotoText": true,
-    "SubDirectory": "KadampaScreenSaver"
+    "SubDirectory": "SitePix"
   },
   "PhotoText": {
     "Font": "Palatino",
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
-    "ImageFileName": false,
-    "RemoveDashKadampaBuddhism": true
+    "ImageFileName": false
   }
 }
 ```
 With `UseMyPictures: true` on macOS, images land in
-`~/Pictures/KadampaScreenSaver`. Good default — the screen saver's
+`~/Pictures/SitePix`. Good default — the screen saver's
 file picker and the Photos app both have that folder handy.
 
 ### 6.5 First run (clears Gatekeeper + triggers LaunchAgent creation)
 ```bash
-./KadampaScreenSaver
+./SitePix
 ```
 If macOS blocks execution ("cannot be opened because the developer
 cannot be verified"), clear quarantine:
 ```bash
-xattr -dr com.apple.quarantine ./KadampaScreenSaver
+xattr -dr com.apple.quarantine ./SitePix
 ```
 On first successful run, `TaskRegistration.RegisterMacOS()` creates
-`~/Library/LaunchAgents/com.kadampa.screensaver.plist`. It is **not
+`~/Library/LaunchAgents/com.sitepix.agent.plist`. It is **not
 loaded automatically** — activate it once:
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.kadampa.screensaver.plist 2>/dev/null
-launchctl load   ~/Library/LaunchAgents/com.kadampa.screensaver.plist
-launchctl list | grep kadampa
+launchctl unload ~/Library/LaunchAgents/com.sitepix.agent.plist 2>/dev/null
+launchctl load   ~/Library/LaunchAgents/com.sitepix.agent.plist
+launchctl list | grep sitepix
 ```
 
 ### 6.6 Point the macOS screen saver at the folder
@@ -150,14 +150,14 @@ macOS Sonoma (14) / Sequoia (15):
    *Photo Wall*, or *Vintage Prints*.
 4. Click **Options…** (or **Photo Library** → **Source**) next to
    the preview.
-5. **Choose Folder…** → select `~/Pictures/KadampaScreenSaver`.
+5. **Choose Folder…** → select `~/Pictures/SitePix`.
 6. Set idle timeout in **System Settings → Lock Screen → Start Screen
    Saver when inactive**.
 
 macOS Ventura (13) and earlier:
 1. **System Settings → Desktop & Screen Saver → Screen Saver**.
 2. Pick a slideshow module as above.
-3. **Source → Choose Folder…** → `~/Pictures/KadampaScreenSaver`.
+3. **Source → Choose Folder…** → `~/Pictures/SitePix`.
 
 ### 6.7 Grant Full Disk Access if the folder picker is empty
 If the "Choose Folder…" dialog shows the folder but the module
@@ -168,16 +168,16 @@ your `~/Pictures` directory:
 
 ### 6.8 Optional: wallpaper rotation from the same folder
 **System Settings → Wallpaper → Add Folder…** → pick
-`~/Pictures/KadampaScreenSaver`, toggle **Shuffle**. Desktop rotates
+`~/Pictures/SitePix`, toggle **Shuffle**. Desktop rotates
 through the same daily-refreshed imagery.
 
 ---
 
 ## 7. Verification checklist
-- [ ] `./KadampaScreenSaver` exits 0 and populates
-      `~/Pictures/KadampaScreenSaver` with at least one `.jpg`.
-- [ ] `~/Library/LaunchAgents/com.kadampa.screensaver.plist` exists.
-- [ ] `launchctl list | grep kadampa` shows the agent loaded.
+- [ ] `./SitePix` exits 0 and populates
+      `~/Pictures/SitePix` with at least one `.jpg`.
+- [ ] `~/Library/LaunchAgents/com.sitepix.agent.plist` exists.
+- [ ] `launchctl list | grep sitepix` shows the agent loaded.
 - [ ] A second run skips articles already in `VisitedUrls.log`.
 - [ ] Files older than `Policies:RetentionDays` are removed on a
       subsequent run.
@@ -189,12 +189,12 @@ through the same daily-refreshed imagery.
 ## 8. Troubleshooting
 | Symptom | Fix |
 | --- | --- |
-| `cannot be opened because the developer cannot be verified` | `xattr -dr com.apple.quarantine ./KadampaScreenSaver` |
+| `cannot be opened because the developer cannot be verified` | `xattr -dr com.apple.quarantine ./SitePix` |
 | `Executable doesn't exist at …ms-playwright/chromium-…` | Re-run `playwright install chromium`. Check `~/Library/Caches/ms-playwright/`. |
 | `launchctl load` says `Load failed: 5: Input/output error` | Plist is already loaded; `launchctl unload` first, then `load`. |
-| LaunchAgent runs but nothing downloads | Check `/tmp/kadampa-screensaver.log` and `/tmp/kadampa-screensaver.err`. Usually a Chromium path issue — reinstall browsers. |
+| LaunchAgent runs but nothing downloads | Check `/tmp/com.sitepix.agent.log` and `/tmp/com.sitepix.agent.err`. Usually a Chromium path issue — reinstall browsers. |
 | Screen saver shows black / no photos | Grant `ScreenSaverEngine` Full Disk Access (§6.7), or switch to a Classic slideshow module (§6.6). |
-| HTTP 403 from kadampa.org | Cloudflare challenge — the .NET app handles this via Playwright. If you see this in logs, Chromium is likely not installed; see `playwright install chromium`. |
+| HTTP 403 from the source site | Cloudflare challenge — the .NET app handles this via Playwright. If you see this in logs, Chromium is likely not installed; see `playwright install chromium`. |
 
 ## 9. Future enhancements
 - Signed / notarized `.pkg` installer that handles Gatekeeper and

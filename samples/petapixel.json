@@ -1,0 +1,55 @@
+{
+  "StartPage": "https://petapixel.com/",
+
+  "Policies": {
+    "LinkDepth": 5,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "UrlPattern": "/{Year}/\\d{2}/\\d{2}/",
+    "MinWidthPx": 1200,
+    "ImageUrlExcludes": [
+      "-150x",
+      "-300x",
+      "avatar",
+      "gravatar",
+      "logo",
+      "icon"
+    ],
+    "ContentSelectors": [
+      "main article .entry-content",
+      "article .entry-content",
+      "main article",
+      "article",
+      ".post-content",
+      "body"
+    ]
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-PetaPixel"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "PhotoText": true,
+    "SubDirectory": "PetaPixel"
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "BrandColors": [
+      "#111111",
+      "#FFFFFF",
+      "#E30613",
+      "#F5A623",
+      "#4A90E2"
+    ]
+  }
+}

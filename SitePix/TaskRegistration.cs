@@ -9,11 +9,13 @@ using Microsoft.Win32.TaskScheduler;
 using TaskServiceTask = Microsoft.Win32.TaskScheduler.Task;
 #endif
 
-namespace KadampaScreenSaver;
+namespace SitePix;
 
 internal static class TaskRegistration
 {
-    private const string TaskName = "KadampaScreenSaver";
+    private const string DefaultTaskName = "SitePix";
+    private const string DefaultMacOSLabel = "com.sitepix.agent";
+    private const string DefaultLinuxMarker = "# sitepix";
 
     /// <summary>
     /// Registers a daily scheduled task on the current platform if configured.
@@ -38,14 +40,18 @@ internal static class TaskRegistration
             return;
         }
 
+        // Allow config to override the task identifier so multiple profiles
+        // scheduled on one machine don't collide.
+        string taskName = configuration.GetValue<string>("Task Scheduler:Id") ?? DefaultTaskName;
+
         try
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                RegisterWindows(exePath, timeOfDay, logger);
+                RegisterWindows(exePath, timeOfDay, taskName, logger);
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                RegisterMacOS(exePath, timeOfDay, logger);
+                RegisterMacOS(exePath, timeOfDay, taskName, logger);
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                RegisterLinux(exePath, timeOfDay, logger);
+                RegisterLinux(exePath, timeOfDay, taskName, logger);
             else
                 logger?.LogWarning("Unsupported OS for task scheduling.");
         }
@@ -57,19 +63,19 @@ internal static class TaskRegistration
 
     // ─── Windows ─────────────────────────────────────────────────────────────
 
-    private static void RegisterWindows(string exePath, TimeSpan timeOfDay, ILogger? logger)
+    private static void RegisterWindows(string exePath, TimeSpan timeOfDay, string taskName, ILogger? logger)
     {
 #if WINDOWS
         using TaskService ts = new TaskService();
         foreach (TaskServiceTask task in ts.RootFolder.Tasks)
         {
-            if (task.Name == TaskName)
+            if (task.Name == taskName)
                 return; // already registered
         }
 
         TaskDefinition td = ts.NewTask();
-        td.RegistrationInfo.Author = "kadampa@alexreich.com";
-        td.RegistrationInfo.Description = "Kadampa News Service for KadampaScreenSaver";
+        td.RegistrationInfo.Author = "sitepix";
+        td.RegistrationInfo.Description = "Daily image sync for SitePix";
         td.Actions.Add(new ExecAction(exePath));
 
         DailyTrigger trigger = new DailyTrigger
@@ -79,20 +85,25 @@ internal static class TaskRegistration
         };
         td.Triggers.Add(trigger);
 
-        ts.RootFolder.RegisterTaskDefinition(TaskName, td);
-        logger?.LogInformation("Windows Task '{TaskName}' registered.", TaskName);
+        ts.RootFolder.RegisterTaskDefinition(taskName, td);
+        logger?.LogInformation("Windows Task '{TaskName}' registered.", taskName);
 #endif
     }
 
     // ─── macOS (launchd) ─────────────────────────────────────────────────────
 
-    private static void RegisterMacOS(string exePath, TimeSpan timeOfDay, ILogger? logger)
+    private static void RegisterMacOS(string exePath, TimeSpan timeOfDay, string taskName, ILogger? logger)
     {
-        string plistName = $"com.kadampa.screensaver.plist";
+        // Task name may be user-supplied; keep the plist label conservative
+        // (only lower-case it and add the agent suffix if we're using the default name).
+        string label = taskName == DefaultTaskName
+            ? DefaultMacOSLabel
+            : $"com.sitepix.{taskName.ToLowerInvariant()}";
+
         string plistDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "Library", "LaunchAgents");
-        string plistPath = Path.Combine(plistDir, plistName);
+        string plistPath = Path.Combine(plistDir, $"{label}.plist");
 
         if (File.Exists(plistPath))
         {
@@ -108,7 +119,7 @@ internal static class TaskRegistration
 <plist version=""1.0"">
 <dict>
     <key>Label</key>
-    <string>com.kadampa.screensaver</string>
+    <string>{label}</string>
     <key>ProgramArguments</key>
     <array>
         <string>{exePath}</string>
@@ -121,9 +132,9 @@ internal static class TaskRegistration
         <integer>{timeOfDay.Minutes}</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/tmp/kadampa-screensaver.log</string>
+    <string>/tmp/{label}.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/kadampa-screensaver.err</string>
+    <string>/tmp/{label}.err</string>
 </dict>
 </plist>";
 
@@ -133,10 +144,11 @@ internal static class TaskRegistration
 
     // ─── Linux (cron) ────────────────────────────────────────────────────────
 
-    private static void RegisterLinux(string exePath, TimeSpan timeOfDay, ILogger? logger)
+    private static void RegisterLinux(string exePath, TimeSpan timeOfDay, string taskName, ILogger? logger)
     {
-        // Check if cron entry already exists
-        string cronMarker = $"# kadampa-screensaver";
+        string cronMarker = taskName == DefaultTaskName
+            ? DefaultLinuxMarker
+            : $"# sitepix-{taskName.ToLowerInvariant()}";
         string cronLine = $"{timeOfDay.Minutes} {timeOfDay.Hours} * * * {exePath} {cronMarker}";
 
         try
@@ -148,7 +160,6 @@ internal static class TaskRegistration
                 return;
             }
 
-            // Append to existing crontab
             string newCrontab = result.TrimEnd() + Environment.NewLine + cronLine + Environment.NewLine;
             var proc = new Process
             {
