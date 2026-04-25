@@ -76,7 +76,17 @@ jobs:
           Compress-Archive -Path "$env:PUBLISH_DIR\*" -DestinationPath "artifacts\SitePix-$env:VERSION-win-x64-portable.zip" -CompressionLevel Optimal
 
       - name: Install Inno Setup
-        run: choco install innosetup --version=6.2.2 --no-progress -y
+        shell: pwsh
+        run: |
+          # windows-latest runner ships Inno Setup 6 preinstalled at the path below.
+          # Only invoke choco if it's actually missing — pinning --version=6.2.2 fails
+          # on runners that already have a newer Inno (choco refuses to downgrade).
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          } else {
+            Write-Host "Inno Setup already present at $iscc"
+          }
 
       - name: Build installer
         shell: pwsh
