@@ -118,12 +118,12 @@ if [ "$DO_SCHEDULE" -eq 1 ]; then
     "$APPSETTINGS"
   # Run once to let TaskRegistration write ~/Library/LaunchAgents/.
   (cd "$OUT" && ./SitePix) >/dev/null || true
-  PLIST="$HOME/Library/LaunchAgents/com.kadampa.screensaver.plist"
+  PLIST="$HOME/Library/LaunchAgents/com.sitepix.agent.plist"
   if [ -f "$PLIST" ]; then
     launchctl unload "$PLIST" 2>/dev/null || true
     launchctl load   "$PLIST"
     say "LaunchAgent loaded:"
-    launchctl list | grep kadampa || true
+    launchctl list | grep sitepix || true
   else
     echo "WARN: expected LaunchAgent plist at $PLIST but it was not created" >&2
   fi

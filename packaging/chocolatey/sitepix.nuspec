@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>sitepix</id>
+    <version>__VERSION__</version>
+    <packageSourceUrl>https://github.com/alexreich/SitePix/tree/main/packaging/chocolatey</packageSourceUrl>
+    <owners>alexreich</owners>
+    <title>SitePix</title>
+    <authors>Alex Reich</authors>
+    <projectUrl>https://github.com/alexreich/SitePix</projectUrl>
+    <!-- To add a package listing icon, commit a 128x128 PNG to packaging/chocolatey/icon.png and set: -->
+    <!-- <iconUrl>https://raw.githubusercontent.com/alexreich/SitePix/main/packaging/chocolatey/icon.png</iconUrl> -->
+    <copyright>Copyright (c) Alex Reich</copyright>
+    <licenseUrl>https://github.com/alexreich/SitePix/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/alexreich/SitePix</projectSourceUrl>
+    <docsUrl>https://github.com/alexreich/SitePix/blob/main/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/alexreich/SitePix/issues</bugTrackerUrl>
+    <tags>sitepix screensaver wallpaper photos scraper wordpress</tags>
+    <summary>Pulls large photos from WordPress-style news blogs into a folder your screensaver can use.</summary>
+    <description>SitePix downloads large images from any WordPress-style news blog with dated permalinks and standard &lt;article&gt; / OpenGraph conventions, overlays optional title/date text, and drops them in a folder the OS screensaver or desktop slideshow can point at. Originally built for kadampa.org and now profile-driven via JSON. On first run it registers a daily scheduled task so new images arrive automatically.</description>
+    <releaseNotes>https://github.com/alexreich/SitePix/releases/tag/v__VERSION__</releaseNotes>
+    <dependencies />
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

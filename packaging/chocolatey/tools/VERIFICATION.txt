@@ -1,0 +1,22 @@
+VERIFICATION
+
+SitePix is published by Alex Reich at:
+  https://github.com/alexreich/SitePix
+
+This Chocolatey package downloads the official installer from the GitHub
+Releases page and verifies it against the SHA-256 checksum embedded in
+tools\chocolateyinstall.ps1.
+
+To verify manually for version __VERSION__:
+
+1. Download the installer from:
+   https://github.com/alexreich/SitePix/releases/download/v__VERSION__/SitePix-Setup-__VERSION__.exe
+
+2. Compute its SHA-256 hash, for example with PowerShell:
+     Get-FileHash .\SitePix-Setup-__VERSION__.exe -Algorithm SHA256
+
+3. Compare the hash to the value shown on the release page and to the
+   $checksum64 variable in tools\chocolateyinstall.ps1 — they must match.
+
+This file (VERIFICATION.txt) and the package source are maintained at:
+  https://github.com/alexreich/SitePix/tree/main/packaging/chocolatey

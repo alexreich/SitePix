@@ -58,7 +58,6 @@ The `TaskScheduler` NuGet package is only referenced when building on Windows (v
 - Added `SkiaSharp` (v3.119.2) package reference
 - Made `TaskScheduler` package conditional: only included on Windows builds
 - Added `WINDOWS` define constant (conditional on Windows) for `#if WINDOWS` compilation
-- Bumped version to 2.0.0
 
 ### 5. UrlLogger Consolidation
 

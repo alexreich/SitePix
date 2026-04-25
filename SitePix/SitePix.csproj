@@ -5,12 +5,37 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>2.0.0</Version>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Product>SitePix</Product>
+    <Company>Alex Reich</Company>
+    <Authors>Alex Reich</Authors>
+    <Copyright>Copyright (c) Alex Reich</Copyright>
+    <Description>Pulls large photos from WordPress-style news blogs into a folder your OS screensaver or slideshow can point at. Originally built for kadampa.org; now profile-driven.</Description>
+    <PackageProjectUrl>https://github.com/alexreich/SitePix</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/alexreich/SitePix</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RootNamespace>SitePix</RootNamespace>
+    <AssemblyName>SitePix</AssemblyName>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
-  <!-- Define WINDOWS constant for conditional compilation on Windows -->
+  <!-- WINDOWS preprocessor symbol — TaskRegistration.cs guards Win32 imports
+       behind #if WINDOWS so the assembly compiles cleanly on mac/linux. -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Applied only when publishing single-file (not during plain build). -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +50,8 @@
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
   </ItemGroup>
 
-  <!-- Windows-only: Task Scheduler integration -->
+  <!-- Windows-only: Task Scheduler integration. The package isn't restored on
+       non-Windows builds, and Win32-specific code is guarded with #if WINDOWS. -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <PackageReference Include="TaskScheduler" Version="2.12.2" />
   </ItemGroup>
@@ -40,6 +66,9 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Ship the bundled sample profiles next to the binary so users can
+         pass them on the command line without hunting for the repo. -->
+    <None Include="..\samples\*.json" CopyToOutputDirectory="PreserveNewest" Link="samples\%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

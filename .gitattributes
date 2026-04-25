@@ -4,6 +4,19 @@
 * text=auto
 
 ###############################################################################
+# Shell scripts and Homebrew formulas must stay LF — CRLF breaks shebangs and
+# Ruby interpreters on macOS/Linux.
+###############################################################################
+*.sh          text eol=lf
+*.rb          text eol=lf
+*.rb.template text eol=lf
+install.sh    text eol=lf
+macos/install.sh                       text eol=lf
+packaging/linux/sitepix-install-schedule text eol=lf
+packaging/linux/postinst.sh              text eol=lf
+packaging/linux/prerm.sh                 text eol=lf
+
+###############################################################################
 # Set default behavior for command prompt diff.
 #
 # This is need for earlier builds of msysgit that does not have it on by

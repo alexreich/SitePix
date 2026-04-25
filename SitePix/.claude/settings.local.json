@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(head:*)",
-      "Bash(cd \"C:\\\\Users\\\\alex\\\\source\\\\repos\\\\KadampaScreenSaver\\\\KadampaScreenSaver\" && dotnet build 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\alex\\\\source\\\\repos\\\\KadampaScreenSaver\\\\KadampaScreenSaver\" && dotnet clean -q 2>&1 && dotnet build 2>&1)"
-    ]
-  }
-}

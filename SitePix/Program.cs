@@ -12,22 +12,35 @@ using SkiaSharp;
 
 // First positional CLI arg selects a config profile file — e.g.
 // `sitepix samples/petapixel.json`. Otherwise fall back to appsettings.json
-// next to the binary (or in the cwd, which dotnet Configuration searches by default).
-string configPath = "appsettings.json";
+// next to the binary. We resolve relative to the binary's own directory, NOT
+// the current working directory, because Task Scheduler / launchd / cron all
+// run with a CWD that's nowhere near the install path.
+string configPath;
 if (args.Length > 0)
 {
-    if (!File.Exists(args[0]))
+    // Try the arg as-is (absolute or CWD-relative — preserves the dev workflow
+    // of `sitepix samples/foo.json` from the repo root). Fall back to the
+    // binary's own directory so `sitepix samples/foo.json` also works after
+    // installation when CWD is somewhere unrelated.
+    if (File.Exists(args[0]))
+        configPath = args[0];
+    else if (File.Exists(Path.Combine(AppContext.BaseDirectory, args[0])))
+        configPath = Path.Combine(AppContext.BaseDirectory, args[0]);
+    else
     {
         Console.Error.WriteLine($"Config file not found: {args[0]}");
         Environment.Exit(1);
+        return;
     }
-    configPath = args[0];
+}
+else
+{
+    configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
 }
 
 HttpClient client = new HttpClient();
 ILogger<Program> logger = null!;
 IConfigurationRoot configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile(configPath, optional: true, reloadOnChange: false)
     .Build();
 

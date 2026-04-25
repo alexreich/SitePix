@@ -1,0 +1,11 @@
+SitePix
+
+Copyright (c) Alex Reich
+
+SitePix is licensed under the Creative Commons Attribution 4.0 International
+License (CC-BY-4.0). Full license text is published in the project repository:
+  https://github.com/alexreich/SitePix/blob/main/LICENSE
+
+You are free to share and adapt the work for any purpose, including
+commercially, provided you give appropriate credit and indicate if changes
+were made.
