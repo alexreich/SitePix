@@ -1,0 +1,55 @@
+{
+  "StartPage": "https://www.thephoblographer.com/",
+
+  "Policies": {
+    "LinkDepth": 6,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "UrlPattern": "/{Year}/\\d{2}/\\d{2}/",
+    "MinWidthPx": 1200,
+    "ImageUrlExcludes": [
+      "150x",
+      "300x",
+      "avatar",
+      "gravatar",
+      "logo",
+      "icon",
+      "ad-",
+      "sponsor"
+    ],
+    "ContentSelectors": [
+      "main article .entry-content",
+      "article .entry-content",
+      "main article",
+      "article",
+      "body"
+    ]
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-Phoblographer"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "PhotoText": true,
+    "SubDirectory": "ThePhoblographer"
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "BrandColors": [
+      "#1A1A1A",
+      "#FFFFFF",
+      "#E74C3C",
+      "#3498DB"
+    ]
+  }
+}

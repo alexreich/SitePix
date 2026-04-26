@@ -7,17 +7,19 @@
 #   2. Publishes a self-contained native macOS binary into dist/macos/.
 #   3. Installs the Microsoft.Playwright.CLI .NET tool and uses it to
 #      download Playwright's Chromium build into ~/Library/Caches/ms-playwright/.
-#   4. Fixes up dist/macos/appsettings.json for macOS defaults
-#      (UseMyPictures=true, Palatino font, Task Scheduler empty for
-#      the first run so no LaunchAgent is created unexpectedly).
+#   4. Prompts for a source profile (numbered list, default = first) and
+#      copies that profile's JSON over dist/macos/appsettings.json so the
+#      app is ready to run with that source.
 #   5. Optionally runs the binary once and opens the output folder.
-#   6. Optionally enables the LaunchAgent for daily refresh at 05:30.
+#   6. Optionally enables a daily LaunchAgent.
+#   7. Prints the exact path of dist/macos/appsettings.json so the user
+#      knows where to tweak settings later.
 #
 # Run from the repo root:
-#   ./macos/install.sh             # install + build (no run, no LaunchAgent)
-#   ./macos/install.sh --run       # also run once and open ~/Pictures/SitePix
-#   ./macos/install.sh --schedule  # also enable the daily LaunchAgent at 05:30
-#   ./macos/install.sh --run --schedule
+#   ./macos/install.sh                         # interactive picker
+#   ./macos/install.sh --source petapixel      # non-interactive
+#   ./macos/install.sh --source kadampa --run  # also fetch + open folder
+#   ./macos/install.sh --source petapixel --schedule  # also enable daily
 #
 # Env overrides:
 #   DOTNET_CHANNEL=10.0   RID=osx-arm64|osx-x64   START_TIME=05:30
@@ -26,14 +28,17 @@ set -euo pipefail
 
 DO_RUN=0
 DO_SCHEDULE=0
-for arg in "$@"; do
-  case "$arg" in
-    --run) DO_RUN=1 ;;
-    --schedule) DO_SCHEDULE=1 ;;
+SOURCE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --run) DO_RUN=1; shift ;;
+    --schedule) DO_SCHEDULE=1; shift ;;
+    --source) SOURCE="${2:-}"; shift 2 ;;
+    --source=*) SOURCE="${1#--source=}"; shift ;;
     -h|--help)
       sed -n '1,30p' "$0"
       exit 0 ;;
-    *) echo "Unknown flag: $arg" >&2; exit 2 ;;
+    *) echo "Unknown flag: $1" >&2; exit 2 ;;
   esac
 done
 
@@ -56,6 +61,17 @@ OUT="dist/macos"
 DOTNET_DIR="$HOME/.dotnet"
 
 say() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+
+# Source catalog — most popular at top. Each entry: id|description.
+# Order matches the numbered menu shown to the user.
+SOURCES=(
+  "petapixel|Photography news, ~1.5M monthly readers (verified)"
+  "atlasobscura|Travel curiosities & long-form photo essays"
+  "fstoppers|Photography community: news, originals, education"
+  "thephoblographer|Photo gear reviews & sample galleries"
+  "smashingmagazine|Web design & code, screenshot-heavy"
+  "kadampa|Buddhist news from kadampa.org (verified, original profile)"
+)
 
 # ── 1. .NET SDK ─────────────────────────────────────────────────────────────
 if ! command -v dotnet >/dev/null 2>&1 && [ ! -x "$DOTNET_DIR/dotnet" ]; then
@@ -88,21 +104,70 @@ else
   say "Playwright browsers already cached — skipping install"
 fi
 
-# ── 4. appsettings.json sane macOS defaults ─────────────────────────────────
+# ── 4. Source picker ────────────────────────────────────────────────────────
 APPSETTINGS="$OUT/appsettings.json"
-if [ -f "$APPSETTINGS" ]; then
-  say "Adjusting $APPSETTINGS for macOS defaults"
-  /usr/bin/sed -i '' \
-    -e 's|"UseMyPictures": false|"UseMyPictures": true|' \
-    -e 's|"Font": "Palatino Linotype"|"Font": "Palatino"|' \
-    "$APPSETTINGS"
+
+# Validate --source if supplied.
+if [ -n "$SOURCE" ]; then
+  if [ ! -f "samples/${SOURCE}.json" ]; then
+    echo "ERROR: --source '$SOURCE' has no matching samples/${SOURCE}.json" >&2
+    echo "Available: $(ls samples/ | sed 's/\.json$//' | tr '\n' ' ')" >&2
+    exit 1
+  fi
+fi
+
+if [ -z "$SOURCE" ]; then
+  echo
+  echo "──────────────────────────────────────────────────────────────────"
+  echo " Pick a source profile (most popular first):"
+  echo "──────────────────────────────────────────────────────────────────"
+  i=1
+  for entry in "${SOURCES[@]}"; do
+    id="${entry%%|*}"
+    desc="${entry#*|}"
+    printf "  %d) %-18s — %s\n" "$i" "$id" "$desc"
+    i=$((i+1))
+  done
+  echo "  0) Skip — leave the bundled appsettings.json as-is"
+  echo
+  read -r -p "Enter number [1]: " choice
+  choice="${choice:-1}"
+
+  if [ "$choice" = "0" ]; then
+    say "Skipping picker — bundled appsettings.json (kadampa default) kept"
+    SOURCE=""
+  elif [ "$choice" -ge 1 ] 2>/dev/null && [ "$choice" -le "${#SOURCES[@]}" ]; then
+    SOURCE="${SOURCES[$((choice-1))]%%|*}"
+  else
+    echo "Invalid choice; defaulting to 1 (${SOURCES[0]%%|*})"
+    SOURCE="${SOURCES[0]%%|*}"
+  fi
+fi
+
+if [ -n "$SOURCE" ]; then
+  say "Selected source: $SOURCE"
+  cp "samples/${SOURCE}.json" "$APPSETTINGS"
 fi
 
 # ── 5. First run (optional) ─────────────────────────────────────────────────
 if [ "$DO_RUN" -eq 1 ]; then
   say "Running SitePix once"
   (cd "$OUT" && ./SitePix)
-  DEST="$HOME/Pictures/SitePix"
+  # Read the chosen SubDirectory + UseMyPictures back from the active config.
+  DEST=$(python3 -c "
+import json, os, sys, re
+p = sys.argv[1]
+text = open(p).read()
+text = re.sub(r'^\s*//.*$', '', text, flags=re.M)   # strip line comments
+cfg = json.loads(text)
+sub = cfg.get('Directories', {}).get('SubDirectory', 'SitePix')
+ump = cfg.get('Directories', {}).get('UseMyPictures', False)
+base = cfg.get('Directories', {}).get('Base', '') or ''
+if ump:
+    print(os.path.join(os.path.expanduser('~/Pictures'), sub))
+else:
+    print(os.path.join(base, sub))
+" "$APPSETTINGS")
   if [ -d "$DEST" ]; then
     say "Opening $DEST"
     open "$DEST"
@@ -112,28 +177,45 @@ fi
 # ── 6. LaunchAgent (optional) ───────────────────────────────────────────────
 if [ "$DO_SCHEDULE" -eq 1 ]; then
   say "Enabling daily LaunchAgent at $START_TIME"
-  # Ensure StartTime is non-empty so TaskRegistration.RegisterMacOS fires.
   /usr/bin/sed -i '' \
     -e "s|\"StartTime\": \"\"|\"StartTime\": \"$START_TIME\"|" \
     "$APPSETTINGS"
-  # Run once to let TaskRegistration write ~/Library/LaunchAgents/.
   (cd "$OUT" && ./SitePix) >/dev/null || true
-  PLIST="$HOME/Library/LaunchAgents/com.sitepix.agent.plist"
-  if [ -f "$PLIST" ]; then
-    launchctl unload "$PLIST" 2>/dev/null || true
-    launchctl load   "$PLIST"
+  PLIST_GLOB=$(ls "$HOME/Library/LaunchAgents"/com.sitepix.*.plist 2>/dev/null | head -1 || true)
+  if [ -n "$PLIST_GLOB" ]; then
+    launchctl unload "$PLIST_GLOB" 2>/dev/null || true
+    launchctl load   "$PLIST_GLOB"
     say "LaunchAgent loaded:"
     launchctl list | grep sitepix || true
   else
-    echo "WARN: expected LaunchAgent plist at $PLIST but it was not created" >&2
+    echo "WARN: expected a com.sitepix.*.plist in ~/Library/LaunchAgents but none was created" >&2
   fi
 fi
 
-say "Done."
-echo "Binary:  $REPO_ROOT/$OUT/SitePix"
-echo "Config:  $REPO_ROOT/$APPSETTINGS"
-echo "Images:  \$HOME/Pictures/SitePix"
+# ── 7. Final summary ────────────────────────────────────────────────────────
+ABS_APPSETTINGS="$REPO_ROOT/$APPSETTINGS"
+ABS_BIN="$REPO_ROOT/$OUT/SitePix"
+
 echo
-echo "Next:  System Settings → Screen Saver → Classic → a slideshow module"
-echo "       → Options → Choose Folder… → ~/Pictures/SitePix"
-echo "       (See macos/PRD.md §6.6 for details.)"
+echo "──────────────────────────────────────────────────────────────────"
+echo " ✓ SitePix is installed."
+echo "──────────────────────────────────────────────────────────────────"
+echo
+echo " Binary       : $ABS_BIN"
+echo " Settings file: $ABS_APPSETTINGS"
+echo " Source       : ${SOURCE:-bundled default (kadampa)}"
+echo
+echo " Edit \"$ABS_APPSETTINGS\""
+echo " any time to change source URL, image min-width, retention,"
+echo " text overlay, brand colors, schedule, etc. The file has comments"
+echo " explaining every option."
+echo
+echo " Re-run anytime:"
+echo "     $ABS_BIN"
+echo
+echo " Or pick a different profile without editing:"
+echo "     $ABS_BIN $REPO_ROOT/samples/<profile>.json"
+echo
+echo " For screen-saver setup (System Settings → Screen Saver → Classic"
+echo " slideshow → Choose Folder…), see macos/PRD.md §6.6."
+echo

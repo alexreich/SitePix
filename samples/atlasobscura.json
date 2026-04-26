@@ -1,0 +1,55 @@
+{
+  "StartPage": "https://www.atlasobscura.com/articles",
+
+  "Policies": {
+    "LinkDepth": 6,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "_comment_UrlPattern": "Atlas Obscura uses /articles/<slug> with no year prefix.",
+    "UrlPattern": "/articles/[a-z][a-z0-9-]+/?$",
+    "MinWidthPx": 1024,
+    "ImageUrlExcludes": [
+      "150x",
+      "300x",
+      "avatar",
+      "gravatar",
+      "logo",
+      "icon",
+      "sprite"
+    ],
+    "ContentSelectors": [
+      "main article .body-text",
+      "main article .entry-content",
+      "main article",
+      "article",
+      "body"
+    ]
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-AtlasObscura"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "PhotoText": true,
+    "SubDirectory": "AtlasObscura"
+  },
+
+  "PhotoText": {
+    "Font": "Georgia",
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "BrandColors": [
+      "#1A1A1A",
+      "#FFFFFF",
+      "#D4A547",
+      "#7B5E3F"
+    ]
+  }
+}

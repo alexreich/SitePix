@@ -142,9 +142,22 @@ On startup SitePix reads a JSON config. Pick one:
 }
 ```
 
-Sample profiles live in [`samples/`](samples/):
-- [`samples/kadampa.json`](samples/kadampa.json) — Kadampa Buddhist news
-- [`samples/petapixel.json`](samples/petapixel.json) — photography news
+Sample profiles live in [`samples/`](samples/), most popular first:
+
+| Profile | Source | Notes |
+|---|---|---|
+| [`petapixel.json`](samples/petapixel.json) | [petapixel.com](https://petapixel.com) | Photography news, ~1.5M monthly readers. **Verified.** |
+| [`atlasobscura.json`](samples/atlasobscura.json) | [atlasobscura.com](https://www.atlasobscura.com) | Travel curiosities & long-form photo essays. **Verified.** |
+| [`fstoppers.json`](samples/fstoppers.json) | [fstoppers.com](https://fstoppers.com) | Photography community: news, originals, education. |
+| [`thephoblographer.json`](samples/thephoblographer.json) | [thephoblographer.com](https://www.thephoblographer.com) | Photo gear reviews & sample galleries. |
+| [`smashingmagazine.json`](samples/smashingmagazine.json) | [smashingmagazine.com](https://www.smashingmagazine.com) | Web design & code, screenshot-heavy. |
+| [`kadampa.json`](samples/kadampa.json) | [kadampa.org/news](https://kadampa.org/news) | Buddhist news (original profile). **Verified.** |
+
+The `macos/install.sh --run` script ends with an interactive picker for
+these profiles (or pass `--source <name>` for non-interactive). Whichever
+profile is chosen is copied over `dist/macos/appsettings.json` so the
+binary picks it up next run. The settings file is fully commented — open
+it any time to tweak min-width, retention, font, brand colors, etc.
 
 ### Brand colors
 

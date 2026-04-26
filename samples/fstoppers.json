@@ -1,0 +1,56 @@
+{
+  "StartPage": "https://fstoppers.com/",
+
+  "Policies": {
+    "LinkDepth": 6,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "_comment_UrlPattern": "Fstoppers organizes posts under category prefixes (/news, /photo, /education, /business, /inspiration). Articles end with a numeric id.",
+    "UrlPattern": "/(news|photo|education|business|inspiration|originals|reviews)/[a-z0-9-]+-?\\d*/?$",
+    "MinWidthPx": 1200,
+    "ImageUrlExcludes": [
+      "thumb",
+      "150x",
+      "300x",
+      "avatar",
+      "gravatar",
+      "logo",
+      "icon"
+    ],
+    "ContentSelectors": [
+      "main article .article__body",
+      "main article .entry-content",
+      "article .article__body",
+      "main article",
+      "article",
+      "body"
+    ]
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-Fstoppers"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "PhotoText": true,
+    "SubDirectory": "Fstoppers"
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "BrandColors": [
+      "#000000",
+      "#FFFFFF",
+      "#FFB600",
+      "#3498DB"
+    ]
+  }
+}
