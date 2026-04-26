@@ -11,7 +11,7 @@ using SitePix;
 using SkiaSharp;
 
 // First positional CLI arg selects a config profile file — e.g.
-// `sitepix samples/petapixel.json`. Otherwise fall back to appsettings.json
+// `sitepix samples/petapixel.com.json`. Otherwise fall back to appsettings.json
 // next to the binary. We resolve relative to the binary's own directory, NOT
 // the current working directory, because Task Scheduler / launchd / cron all
 // run with a CWD that's nowhere near the install path.

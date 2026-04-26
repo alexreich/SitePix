@@ -23,7 +23,7 @@ Run once to populate your photos folder, then set up daily syncs:
 
 Photos download to ~/Pictures/SitePix by default. To use a different source
 site, pass a profile JSON on the command line:
-  sitepix /opt/sitepix/samples/petapixel.json
+  sitepix /opt/sitepix/samples/petapixel.com.json
 
 See README.md for the full profile schema.
 

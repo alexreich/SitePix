@@ -16,10 +16,10 @@
 #      knows where to tweak settings later.
 #
 # Run from the repo root:
-#   ./macos/install.sh                         # interactive picker
-#   ./macos/install.sh --source petapixel      # non-interactive
-#   ./macos/install.sh --source kadampa --run  # also fetch + open folder
-#   ./macos/install.sh --source petapixel --schedule  # also enable daily
+#   ./macos/install.sh                                    # interactive picker
+#   ./macos/install.sh --source petapixel.com             # non-interactive
+#   ./macos/install.sh --source kadampa.org --run         # also fetch + open folder
+#   ./macos/install.sh --source petapixel.com --schedule  # also enable daily
 #
 # Env overrides:
 #   DOTNET_CHANNEL=10.0   RID=osx-arm64|osx-x64   START_TIME=05:30
@@ -62,15 +62,16 @@ DOTNET_DIR="$HOME/.dotnet"
 
 say() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
-# Source catalog — most popular at top. Each entry: id|description.
-# Order matches the numbered menu shown to the user.
+# Source catalog — most popular at top. Each entry: domain|description.
+# The domain is also the basename of samples/<domain>.json. Order matches
+# the numbered menu shown to the user.
 SOURCES=(
-  "petapixel|Photography news, ~1.5M monthly readers (verified)"
-  "atlasobscura|Travel curiosities & long-form photo essays"
-  "fstoppers|Photography community: news, originals, education"
-  "thephoblographer|Photo gear reviews & sample galleries"
-  "smashingmagazine|Web design & code, screenshot-heavy"
-  "kadampa|Buddhist news from kadampa.org (verified, original profile)"
+  "petapixel.com|Photography news, ~1.5M monthly readers (verified)"
+  "atlasobscura.com|Travel curiosities & long-form photo essays (verified)"
+  "fstoppers.com|Photography community: news, originals, education"
+  "thephoblographer.com|Photo gear reviews & sample galleries"
+  "smashingmagazine.com|Web design & code, screenshot-heavy"
+  "kadampa.org|Buddhist news (verified, original profile)"
 )
 
 # ── 1. .NET SDK ─────────────────────────────────────────────────────────────
@@ -125,16 +126,16 @@ if [ -z "$SOURCE" ]; then
   for entry in "${SOURCES[@]}"; do
     id="${entry%%|*}"
     desc="${entry#*|}"
-    printf "  %d) %-18s — %s\n" "$i" "$id" "$desc"
+    printf "  %d) %-22s — %s\n" "$i" "$id" "$desc"
     i=$((i+1))
   done
-  echo "  0) Skip — leave the bundled appsettings.json as-is"
+  echo "  0) Skip                  — leave the bundled appsettings.json as-is"
   echo
   read -r -p "Enter number [1]: " choice
   choice="${choice:-1}"
 
   if [ "$choice" = "0" ]; then
-    say "Skipping picker — bundled appsettings.json (kadampa default) kept"
+    say "Skipping picker — bundled appsettings.json (kadampa.org default) kept"
     SOURCE=""
   elif [ "$choice" -ge 1 ] 2>/dev/null && [ "$choice" -le "${#SOURCES[@]}" ]; then
     SOURCE="${SOURCES[$((choice-1))]%%|*}"

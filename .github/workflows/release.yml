@@ -377,9 +377,13 @@ jobs:
           - Or one-liner: \`curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/install.sh | sh\`
 
           ### Profiles
-          The bundled profile is kadampa.org. Pass \`samples/petapixel.json\` (or any
-          custom JSON profile) on the command line to point SitePix at a different
-          source. See README.md for the schema.
+          The bundled profile is kadampa.org. Six sample profiles ship in
+          \`samples/\` — file basename is the source domain:
+          \`petapixel.com\`, \`atlasobscura.com\`, \`fstoppers.com\`,
+          \`thephoblographer.com\`, \`smashingmagazine.com\`, \`kadampa.org\`.
+          Point SitePix at any of them on the command line:
+              sitepix samples/petapixel.com.json
+          See README.md for the schema.
 
           ### Scheduling
           On first run SitePix registers a daily task using whatever scheduler the

@@ -49,7 +49,7 @@ class Sitepix < Formula
 
       Run once to populate photos:
         sitepix
-        sitepix #{opt_libexec}/samples/petapixel.json   # or any other profile
+        sitepix #{opt_libexec}/samples/petapixel.com.json   # or any other profile
 
       Start the daily sync (05:30 by default):
         brew services start sitepix

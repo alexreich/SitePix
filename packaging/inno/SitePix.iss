@@ -46,9 +46,6 @@ RestartApplications=no
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "runonfinish"; Description: "Run SitePix now (registers the daily scheduled task and downloads the first batch of images)"; GroupDescription: "After install:"
-
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -58,8 +55,12 @@ Name: "{group}\Edit configuration"; Filename: "notepad.exe"; Parameters: """{app
 Name: "{group}\Sample profiles"; Filename: "{app}\samples"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 
-[Run]
-Filename: "{app}\{#AppExeName}"; Description: "Run now"; Flags: postinstall nowait skipifsilent; Tasks: runonfinish
+; No [Run] section — package install must NEVER launch the app. Doing so
+; (a) hangs silent installers (Chocolatey, winget, MDM, GPO) when first-run
+; needs to fetch Playwright Chromium or scrape, and (b) confuses verification
+; bots that watch for "install completed" and time out. The user starts
+; SitePix manually from the Start Menu shortcut on first use; the binary
+; registers its own daily scheduled task on that first invocation.
 
 [UninstallRun]
 ; Remove the scheduled task the app registered on first run.

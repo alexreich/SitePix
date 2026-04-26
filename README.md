@@ -71,7 +71,7 @@ dotnet publish SitePix/SitePix.csproj -c Release -r osx-arm64 --self-contained \
   -p:PublishSingleFile=true -o dist/macos
 cd SitePix && playwright install chromium
 ./dist/macos/SitePix                              # uses bundled appsettings.json (kadampa)
-./dist/macos/SitePix samples/petapixel.json       # or any other profile
+./dist/macos/SitePix samples/petapixel.com.json   # or any other profile
 ```
 
 Use `osx-x64` on Intel Macs, `win-x64` on Windows, `linux-x64` / `linux-arm64`
@@ -142,22 +142,24 @@ On startup SitePix reads a JSON config. Pick one:
 }
 ```
 
-Sample profiles live in [`samples/`](samples/), most popular first:
+Sample profiles live in [`samples/`](samples/) — file basename is the
+source domain. Most popular first:
 
 | Profile | Source | Notes |
 |---|---|---|
-| [`petapixel.json`](samples/petapixel.json) | [petapixel.com](https://petapixel.com) | Photography news, ~1.5M monthly readers. **Verified.** |
-| [`atlasobscura.json`](samples/atlasobscura.json) | [atlasobscura.com](https://www.atlasobscura.com) | Travel curiosities & long-form photo essays. **Verified.** |
-| [`fstoppers.json`](samples/fstoppers.json) | [fstoppers.com](https://fstoppers.com) | Photography community: news, originals, education. |
-| [`thephoblographer.json`](samples/thephoblographer.json) | [thephoblographer.com](https://www.thephoblographer.com) | Photo gear reviews & sample galleries. |
-| [`smashingmagazine.json`](samples/smashingmagazine.json) | [smashingmagazine.com](https://www.smashingmagazine.com) | Web design & code, screenshot-heavy. |
-| [`kadampa.json`](samples/kadampa.json) | [kadampa.org/news](https://kadampa.org/news) | Buddhist news (original profile). **Verified.** |
+| [`petapixel.com.json`](samples/petapixel.com.json) | [petapixel.com](https://petapixel.com) | Photography news, ~1.5M monthly readers. **Verified.** |
+| [`atlasobscura.com.json`](samples/atlasobscura.com.json) | [atlasobscura.com](https://www.atlasobscura.com) | Travel curiosities & long-form photo essays. **Verified.** |
+| [`fstoppers.com.json`](samples/fstoppers.com.json) | [fstoppers.com](https://fstoppers.com) | Photography community: news, originals, education. |
+| [`thephoblographer.com.json`](samples/thephoblographer.com.json) | [thephoblographer.com](https://www.thephoblographer.com) | Photo gear reviews & sample galleries. |
+| [`smashingmagazine.com.json`](samples/smashingmagazine.com.json) | [smashingmagazine.com](https://www.smashingmagazine.com) | Web design & code, screenshot-heavy. |
+| [`kadampa.org.json`](samples/kadampa.org.json) | [kadampa.org/news](https://kadampa.org/news) | Buddhist news (original profile). **Verified.** |
 
-The `macos/install.sh --run` script ends with an interactive picker for
-these profiles (or pass `--source <name>` for non-interactive). Whichever
-profile is chosen is copied over `dist/macos/appsettings.json` so the
-binary picks it up next run. The settings file is fully commented — open
-it any time to tweak min-width, retention, font, brand colors, etc.
+The `macos/install.sh` script ends with an interactive picker for these
+profiles (or pass `--source <domain>` for non-interactive — e.g.
+`--source petapixel.com`). Whichever profile is chosen is copied over
+`dist/macos/appsettings.json` so the binary picks it up next run. The
+settings file is fully commented — open it any time to tweak min-width,
+retention, font, brand colors, etc.
 
 ### Brand colors
 
