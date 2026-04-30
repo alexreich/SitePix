@@ -51,10 +51,83 @@ jobs:
           echo "Releasing version $VERSION"
 
   # ---------------------------------------------------------------------------
+  # Create the draft GitHub Release up front. Every platform job below
+  # uploads its packaged outputs directly to the release with `gh release
+  # upload`, so we never use actions/upload-artifact for build outputs —
+  # release assets are unmetered, while Actions artifact storage caps at
+  # 500 MB on the Free plan and our payload is ~840 MB per run.
+  # ---------------------------------------------------------------------------
+  prepare-release:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render release notes
+        run: |
+          cat > release-notes.md <<EOF
+          ## SitePix $VERSION
+
+          ### Windows
+          - \`SitePix-Setup-$VERSION.exe\` — installer (recommended)
+          - \`SitePix-$VERSION-win-x64-portable.zip\` — portable
+          - \`winget install AlexReich.SitePix\`
+          - \`choco install sitepix\`
+
+          ### macOS
+          - \`SitePix-$VERSION-osx-arm64.tar.gz\` (Apple Silicon)
+          - \`SitePix-$VERSION-osx-x64.tar.gz\` (Intel)
+          - \`brew install alexreich/tap/sitepix\`
+          - Or one-liner: \`curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/install.sh | sh\`
+
+          ### Linux
+          - \`SitePix-$VERSION-x86_64.AppImage\` (universal, single file)
+          - \`sitepix_${VERSION}_amd64.deb\` / \`_arm64.deb\` (Debian, Ubuntu, Mint)
+          - \`sitepix-$VERSION-1.x86_64.rpm\` / \`.aarch64.rpm\` (Fedora, RHEL, openSUSE)
+          - \`SitePix-$VERSION-linux-x64.tar.gz\` / \`-linux-arm64.tar.gz\` (portable tarballs)
+          - Or one-liner: \`curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/install.sh | sh\`
+
+          ### Profiles
+          The bundled profile is kadampa.org. Six sample profiles ship in
+          \`samples/\` — file basename is the source domain:
+          \`petapixel.com\`, \`atlasobscura.com\`, \`fstoppers.com\`,
+          \`thephoblographer.com\`, \`smashingmagazine.com\`, \`kadampa.org\`.
+          Point SitePix at any of them on the command line:
+              sitepix samples/petapixel.com.json
+          See README.md for the schema.
+
+          ### Scheduling
+          On first run SitePix registers a daily task using whatever scheduler the
+          host OS provides (Task Scheduler / launchd / cron). Run
+          \`sitepix-install-schedule\` to swap a Linux cron entry for a systemd user
+          timer, change the time, or remove the schedule entirely.
+          EOF
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$VERSION"
+          # Only flip draft on creation; never demote an already-published
+          # release back to draft on re-runs (would hide the live download).
+          if gh release view "$TAG" --json tagName --jq '.tagName' >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "SitePix $VERSION" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --draft --title "SitePix $VERSION" --notes-file release-notes.md --target "$GITHUB_SHA"
+          fi
+
+      - name: Upload install.sh (curl-pipe installer for mac/linux)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "v$VERSION" install.sh --clobber
+
+  # ---------------------------------------------------------------------------
   # WINDOWS: self-contained exe → Inno installer → portable zip → winget + choco
   # ---------------------------------------------------------------------------
   build-windows:
-    needs: version
+    needs: [version, prepare-release]
     runs-on: windows-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -143,20 +216,25 @@ jobs:
           choco pack sitepix.nuspec --out ..
           Pop-Location
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: |
-            artifacts/*.exe
-            artifacts/*.zip
-            artifacts/*.nupkg
-          if-no-files-found: error
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          # Direct upload to the (draft) release. Skips Actions artifact
+          # storage entirely — release assets are unmetered.
+          gh release upload "v$VERSION" \
+            artifacts/SitePix-Setup-$VERSION.exe \
+            "artifacts/SitePix-$VERSION-win-x64-portable.zip" \
+            artifacts/sitepix.$VERSION.nupkg \
+            "artifacts/SitePix-$VERSION-winget-manifests.zip" \
+            --clobber
 
   # ---------------------------------------------------------------------------
   # LINUX: tarballs + AppImage + .deb + .rpm
   # ---------------------------------------------------------------------------
   build-linux:
-    needs: version
+    needs: [version, prepare-release]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -272,17 +350,27 @@ jobs:
               -C "$ROOT" -p "artifacts/sitepix-${VERSION}-1.${RPM_ARCH}.rpm" .
           done
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux
-          path: artifacts/*
-          if-no-files-found: error
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Direct upload to the (draft) release. ~520 MB of Linux packages
+          # bypasses Actions artifact storage entirely.
+          gh release upload "v$VERSION" \
+            artifacts/SitePix-$VERSION-linux-x64.tar.gz \
+            artifacts/SitePix-$VERSION-linux-arm64.tar.gz \
+            artifacts/SitePix-$VERSION-x86_64.AppImage \
+            artifacts/sitepix_${VERSION}_amd64.deb \
+            artifacts/sitepix_${VERSION}_arm64.deb \
+            artifacts/sitepix-$VERSION-1.x86_64.rpm \
+            artifacts/sitepix-$VERSION-1.aarch64.rpm \
+            --clobber
 
   # ---------------------------------------------------------------------------
   # macOS: self-contained tarballs (x64 + arm64) + Homebrew formula hashes
   # ---------------------------------------------------------------------------
   build-macos:
-    needs: version
+    needs: [version, prepare-release]
     runs-on: macos-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -319,11 +407,17 @@ jobs:
             packaging/homebrew/sitepix.rb.template \
             > artifacts/sitepix.rb
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          path: artifacts/*
-          if-no-files-found: error
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Tarballs go to the release; the rendered Homebrew formula too —
+          # the finalize job pulls it back from the release for tap push.
+          gh release upload "v$VERSION" \
+            "artifacts/SitePix-$VERSION-osx-x64.tar.gz" \
+            "artifacts/SitePix-$VERSION-osx-arm64.tar.gz" \
+            artifacts/sitepix.rb \
+            --clobber
 
   # ---------------------------------------------------------------------------
   # Release: gather everything, create the GH Release, optionally push to
@@ -341,81 +435,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          path: downloaded
-          merge-multiple: true
-
-      - name: Summarize artifacts
-        run: |
-          mkdir -p artifacts
-          mv downloaded/* artifacts/ 2>/dev/null || true
-          find artifacts -maxdepth 1 -type f | sort
-
-      - name: Write release notes
-        run: |
-          cat > artifacts/release-notes.md <<EOF
-          ## SitePix $VERSION
-
-          ### Windows
-          - \`SitePix-Setup-$VERSION.exe\` — installer (recommended)
-          - \`SitePix-$VERSION-win-x64-portable.zip\` — portable
-          - \`winget install AlexReich.SitePix\`
-          - \`choco install sitepix\`
-
-          ### macOS
-          - \`SitePix-$VERSION-osx-arm64.tar.gz\` (Apple Silicon)
-          - \`SitePix-$VERSION-osx-x64.tar.gz\` (Intel)
-          - \`brew install alexreich/tap/sitepix\`
-          - Or one-liner: \`curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/install.sh | sh\`
-
-          ### Linux
-          - \`SitePix-$VERSION-x86_64.AppImage\` (universal, single file)
-          - \`sitepix_${VERSION}_amd64.deb\` / \`_arm64.deb\` (Debian, Ubuntu, Mint)
-          - \`sitepix-$VERSION-1.x86_64.rpm\` / \`.aarch64.rpm\` (Fedora, RHEL, openSUSE)
-          - \`SitePix-$VERSION-linux-x64.tar.gz\` / \`-linux-arm64.tar.gz\` (portable tarballs)
-          - Or one-liner: \`curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/install.sh | sh\`
-
-          ### Profiles
-          The bundled profile is kadampa.org. Six sample profiles ship in
-          \`samples/\` — file basename is the source domain:
-          \`petapixel.com\`, \`atlasobscura.com\`, \`fstoppers.com\`,
-          \`thephoblographer.com\`, \`smashingmagazine.com\`, \`kadampa.org\`.
-          Point SitePix at any of them on the command line:
-              sitepix samples/petapixel.com.json
-          See README.md for the schema.
-
-          ### Scheduling
-          On first run SitePix registers a daily task using whatever scheduler the
-          host OS provides (Task Scheduler / launchd / cron). Run
-          \`sitepix-install-schedule\` to swap a Linux cron entry for a systemd user
-          timer, change the time, or remove the schedule entirely.
-          EOF
-
-      - name: Create / update GitHub Release
+      - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="v$VERSION"
-          mapfile -t FILES < <(find artifacts -maxdepth 1 -type f ! -name 'release-notes.md' ! -name '*.rb' | sort)
-          # Include install.sh from repo so it ends up at /releases/latest/download/install.sh
-          cp install.sh artifacts/install.sh
-          FILES+=("artifacts/install.sh")
-
-          if gh release view "$TAG" --json tagName --jq '.tagName' >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "SitePix $VERSION" --notes-file artifacts/release-notes.md
-            for f in "${FILES[@]}"; do gh release upload "$TAG" "$f" --clobber; done
-          else
-            gh release create "$TAG" --title "SitePix $VERSION" --notes-file artifacts/release-notes.md --target "$GITHUB_SHA" "${FILES[@]}"
-          fi
+          # Each platform job already pushed its assets to the draft release.
+          # Flip the draft bit and mark this as the latest release.
+          gh release edit "v$VERSION" --draft=false --latest
 
       - name: Push to Chocolatey community feed
         if: env.CHOCO_API_KEY != ''
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          NUPKG=$(ls artifacts/*.nupkg | head -n1)
-          if [[ -z "$NUPKG" ]]; then echo "No .nupkg found"; exit 1; fi
-          # Use dotnet nuget push — works from Linux, no Chocolatey CLI needed.
+          gh release download "v$VERSION" -p '*.nupkg' -D /tmp/choco
+          NUPKG=$(ls /tmp/choco/*.nupkg | head -n1)
+          if [[ -z "$NUPKG" ]]; then echo "No .nupkg in release"; exit 1; fi
           dotnet nuget push "$NUPKG" --source https://push.chocolatey.org/ --api-key "$CHOCO_API_KEY"
 
       - name: Submit winget PR
@@ -451,9 +487,12 @@ jobs:
       - name: Push Homebrew formula to tap
         if: env.HOMEBREW_TAP_TOKEN != '' && env.HOMEBREW_TAP_REPO != ''
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          FORMULA=$(ls artifacts/*.rb | head -n1)
-          if [[ -z "$FORMULA" ]]; then echo "No formula found"; exit 1; fi
+          gh release download "v$VERSION" -p 'sitepix.rb' -D /tmp/brew
+          FORMULA=/tmp/brew/sitepix.rb
+          if [[ ! -f "$FORMULA" ]]; then echo "No formula in release"; exit 1; fi
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git" tap
           mkdir -p tap/Formula
           cp "$FORMULA" tap/Formula/sitepix.rb
