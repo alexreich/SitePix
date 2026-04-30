@@ -216,19 +216,26 @@ jobs:
           choco pack sitepix.nuspec --out ..
           Pop-Location
 
-      - name: Upload to GitHub Release
+      - name: SHA-256 sidecars + upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          cd artifacts
+          FILES=(
+            "SitePix-Setup-$VERSION.exe"
+            "SitePix-$VERSION-win-x64-portable.zip"
+            "sitepix.$VERSION.nupkg"
+            "SitePix-$VERSION-winget-manifests.zip"
+          )
+          UPLOAD=()
+          for f in "${FILES[@]}"; do
+            sha256sum "$f" > "$f.sha256"
+            UPLOAD+=("$f" "$f.sha256")
+          done
           # Direct upload to the (draft) release. Skips Actions artifact
           # storage entirely — release assets are unmetered.
-          gh release upload "v$VERSION" \
-            artifacts/SitePix-Setup-$VERSION.exe \
-            "artifacts/SitePix-$VERSION-win-x64-portable.zip" \
-            artifacts/sitepix.$VERSION.nupkg \
-            "artifacts/SitePix-$VERSION-winget-manifests.zip" \
-            --clobber
+          gh release upload "v$VERSION" "${UPLOAD[@]}" --clobber
 
   # ---------------------------------------------------------------------------
   # LINUX: tarballs + AppImage + .deb + .rpm
@@ -350,21 +357,28 @@ jobs:
               -C "$ROOT" -p "artifacts/sitepix-${VERSION}-1.${RPM_ARCH}.rpm" .
           done
 
-      - name: Upload to GitHub Release
+      - name: SHA-256 sidecars + upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cd artifacts
+          FILES=(
+            "SitePix-$VERSION-linux-x64.tar.gz"
+            "SitePix-$VERSION-linux-arm64.tar.gz"
+            "SitePix-$VERSION-x86_64.AppImage"
+            "sitepix_${VERSION}_amd64.deb"
+            "sitepix_${VERSION}_arm64.deb"
+            "sitepix-$VERSION-1.x86_64.rpm"
+            "sitepix-$VERSION-1.aarch64.rpm"
+          )
+          UPLOAD=()
+          for f in "${FILES[@]}"; do
+            sha256sum "$f" > "$f.sha256"
+            UPLOAD+=("$f" "$f.sha256")
+          done
           # Direct upload to the (draft) release. ~520 MB of Linux packages
           # bypasses Actions artifact storage entirely.
-          gh release upload "v$VERSION" \
-            artifacts/SitePix-$VERSION-linux-x64.tar.gz \
-            artifacts/SitePix-$VERSION-linux-arm64.tar.gz \
-            artifacts/SitePix-$VERSION-x86_64.AppImage \
-            artifacts/sitepix_${VERSION}_amd64.deb \
-            artifacts/sitepix_${VERSION}_arm64.deb \
-            artifacts/sitepix-$VERSION-1.x86_64.rpm \
-            artifacts/sitepix-$VERSION-1.aarch64.rpm \
-            --clobber
+          gh release upload "v$VERSION" "${UPLOAD[@]}" --clobber
 
   # ---------------------------------------------------------------------------
   # macOS: self-contained tarballs (x64 + arm64) + Homebrew formula hashes
@@ -407,17 +421,23 @@ jobs:
             packaging/homebrew/sitepix.rb.template \
             > artifacts/sitepix.rb
 
-      - name: Upload to GitHub Release
+      - name: SHA-256 sidecars + upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Tarballs go to the release; the rendered Homebrew formula too —
-          # the finalize job pulls it back from the release for tap push.
-          gh release upload "v$VERSION" \
-            "artifacts/SitePix-$VERSION-osx-x64.tar.gz" \
-            "artifacts/SitePix-$VERSION-osx-arm64.tar.gz" \
-            artifacts/sitepix.rb \
-            --clobber
+          cd artifacts
+          FILES=(
+            "SitePix-$VERSION-osx-x64.tar.gz"
+            "SitePix-$VERSION-osx-arm64.tar.gz"
+          )
+          UPLOAD=("sitepix.rb")
+          for f in "${FILES[@]}"; do
+            shasum -a 256 "$f" > "$f.sha256"
+            UPLOAD+=("$f" "$f.sha256")
+          done
+          # Tarballs + Homebrew formula go to the release; the finalize job
+          # pulls the .rb back from the release for tap push.
+          gh release upload "v$VERSION" "${UPLOAD[@]}" --clobber
 
   # ---------------------------------------------------------------------------
   # Release: gather everything, create the GH Release, optionally push to

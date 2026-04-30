@@ -1,0 +1,25 @@
+# Dependabot keeps NuGet packages and GitHub Actions up to date.
+# Weekly cadence is enough for a small project — daily generates noise.
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/SitePix"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      microsoft-extensions:
+        patterns:
+          - "Microsoft.Extensions.*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "ci"

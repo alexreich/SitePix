@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest an improvement or new capability
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got a use case the current tool doesn't cover? Describe it
+        below. The more concrete the user story, the easier to scope.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Lead with the *why*. The "what" follows.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How you'd like SitePix to behave. Sketch the config / CLI surface if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you try or think about, and why isn't it good enough?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope guess
+      options:
+        - New source profile (samples/<domain>.json)
+        - Scraper engine change (Program.cs)
+        - Packaging / install change
+        - Documentation
+        - Other
+    validations:
+      required: true

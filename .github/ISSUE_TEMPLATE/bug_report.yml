@@ -1,0 +1,94 @@
+name: Bug report
+description: Something doesn't work the way the docs say it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more concrete
+        the repro, the faster we can fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: SitePix version
+      description: From the binary filename, the GitHub Release page, or `sitepix --version` if available.
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (specify distro/arch in the description)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install SitePix?
+      options:
+        - Windows installer (.exe)
+        - winget
+        - Chocolatey
+        - macOS tarball
+        - Homebrew
+        - Linux .deb
+        - Linux .rpm
+        - Linux AppImage
+        - macos/install.sh from the repo
+        - Built from source (dotnet publish)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: profile
+    attributes:
+      label: Which source profile?
+      description: e.g. samples/petapixel.com.json, or "custom" if you wrote your own.
+      placeholder: samples/kadampa.org.json
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, what did you observe?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Smallest sequence that reproduces the issue.
+      placeholder: |
+        1. Run `sitepix samples/foo.json`
+        2. Observe …
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output
+      description: Paste relevant log lines (Console output, `/tmp/com.sitepix.agent.log` on macOS, Event Viewer on Windows).
+      render: text
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and didn't find this already reported.
+          required: true

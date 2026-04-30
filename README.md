@@ -1,5 +1,11 @@
 # SitePix
 
+[![Release](https://img.shields.io/github/v/release/alexreich/SitePix?display_name=tag&sort=semver)](https://github.com/alexreich/SitePix/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/alexreich/SitePix/ci.yml?branch=main&label=CI)](https://github.com/alexreich/SitePix/actions/workflows/ci.yml)
+[![Release CI](https://img.shields.io/github/actions/workflow/status/alexreich/SitePix/release.yml?label=Release%20CI)](https://github.com/alexreich/SitePix/actions/workflows/release.yml)
+[![License: CC BY 4.0](https://img.shields.io/badge/license-CC%20BY%204.0-lightgrey)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/download)
+
 Pulls large photos from WordPress-style news blogs and drops them into a
 folder your OS screen saver (or desktop slideshow) can point at. Runs on
 **Windows, macOS, and Linux**.
@@ -235,6 +241,31 @@ manifests, Chocolatey nupkg, Homebrew formula). Full runbook + one-time
 package-manager submission steps: [`packaging/README.md`](packaging/README.md).
 
 ---
+
+## Verifying downloads
+
+Each release asset has a matching `.sha256` sidecar at the same URL. To
+verify before installing:
+
+```bash
+# macOS / Linux
+shasum -a 256 -c SitePix-1.0.0-osx-arm64.tar.gz.sha256
+sha256sum -c    sitepix_1.0.0_amd64.deb.sha256
+```
+
+```powershell
+# Windows
+$expected = (Get-Content SitePix-Setup-1.0.0.exe.sha256 | Select-String -Pattern '^\S+').Matches.Value
+$actual   = (Get-FileHash SitePix-Setup-1.0.0.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($expected -ne $actual) { throw "Hash mismatch" } else { "OK" }
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and PR
+guidelines, and [CHANGELOG.md](CHANGELOG.md) for what's in each
+release. Security issues: please follow [SECURITY.md](SECURITY.md) —
+do not file public issues.
 
 ## Attribution
 
