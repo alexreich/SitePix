@@ -38,12 +38,22 @@
     "SubDirectory": "PetaPixel"
   },
 
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "PetaPixel",
+    "PhotoText": true
+  },
+
   "PhotoText": {
     "Font": "Helvetica Neue",
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
+    // Overlay mode for readability:
+    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
+    "PanelOpacity": 210,
     "BrandColors": [
       "#111111",
       "#FFFFFF",
@@ -51,5 +61,11 @@
       "#F5A623",
       "#4A90E2"
     ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
   }
 }

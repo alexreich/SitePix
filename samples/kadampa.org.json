@@ -35,8 +35,9 @@
 
   "Directories": {
     "UseMyPictures": true,
-    "PhotoText": true,
-    "SubDirectory": "Kadampa"
+    "Base": "",
+    "SubDirectory": "Kadampa",
+    "PhotoText": true
   },
 
   "PhotoText": {
@@ -45,6 +46,9 @@
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
+    // Overlay mode for readability:
+    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
+    "PanelOpacity": 210,
     "BrandColors": [
       "#224486",
       "#A99886",
@@ -53,5 +57,11 @@
       "#BE303C",
       "#48ADF4"
     ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
   }
 }

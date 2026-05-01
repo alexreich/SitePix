@@ -39,17 +39,33 @@
     "SubDirectory": "AtlasObscura"
   },
 
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "AtlasObscura",
+    "PhotoText": true
+  },
+
   "PhotoText": {
     "Font": "Georgia",
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
+    // Overlay mode for readability:
+    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
+    "PanelOpacity": 210,
     "BrandColors": [
       "#1A1A1A",
       "#FFFFFF",
       "#D4A547",
       "#7B5E3F"
     ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
   }
 }

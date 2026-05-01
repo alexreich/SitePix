@@ -40,17 +40,33 @@
     "SubDirectory": "Fstoppers"
   },
 
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "Fstoppers",
+    "PhotoText": true
+  },
+
   "PhotoText": {
     "Font": "Helvetica Neue",
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
+    // Overlay mode for readability:
+    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
+    "PanelOpacity": 210,
     "BrandColors": [
       "#000000",
       "#FFFFFF",
       "#FFB600",
       "#3498DB"
     ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
   }
 }

@@ -93,6 +93,7 @@ On startup SitePix reads a JSON config. Pick one:
 
 1. Positional CLI arg — `sitepix path/to/profile.json`
 2. `appsettings.json` next to the binary (default — ships tuned for petapixel.com)
+3. If `appsettings.json` is missing, SitePix falls back to `sitepix.json` next to the binary (for older/custom installs)
 
 ### Coming for kadampa.org?
 

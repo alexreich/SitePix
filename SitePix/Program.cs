@@ -11,10 +11,11 @@ using SitePix;
 using SkiaSharp;
 
 // First positional CLI arg selects a config profile file — e.g.
-// `sitepix samples/petapixel.com.json`. Otherwise fall back to appsettings.json
-// next to the binary. We resolve relative to the binary's own directory, NOT
-// the current working directory, because Task Scheduler / launchd / cron all
-// run with a CWD that's nowhere near the install path.
+// `sitepix samples/petapixel.com.json`. Otherwise fall back to
+// appsettings.json (or sitepix.json for older/custom installs) next to the
+// binary. We resolve relative to the binary's own directory, NOT the current
+// working directory, because Task Scheduler / launchd / cron all run with a
+// CWD that's nowhere near the install path.
 string configPath;
 if (args.Length > 0)
 {
@@ -35,13 +36,29 @@ if (args.Length > 0)
 }
 else
 {
-    configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    string sitePixPath = Path.Combine(AppContext.BaseDirectory, "sitepix.json");
+
+    if (File.Exists(appSettingsPath))
+    {
+        configPath = appSettingsPath;
+    }
+    else if (File.Exists(sitePixPath))
+    {
+        configPath = sitePixPath;
+    }
+    else
+    {
+        Console.Error.WriteLine($"No config file found. Expected either '{appSettingsPath}' or '{sitePixPath}'.");
+        Environment.Exit(1);
+        return;
+    }
 }
 
 HttpClient client = new HttpClient();
 ILogger<Program> logger = null!;
 IConfigurationRoot configuration = new ConfigurationBuilder()
-    .AddJsonFile(configPath, optional: true, reloadOnChange: false)
+    .AddJsonFile(configPath, optional: false, reloadOnChange: false)
     .Build();
 
 // Cross-platform task scheduling
@@ -81,6 +98,10 @@ List<SKColor> brandColors = (configuration.GetSection("PhotoText:BrandColors").G
     .Select(hex => SKColor.Parse(hex))
     .ToList();
 
+// Overlay panel mode: -1 = no panel/no outline, 0 = outline only, 1..255 = panel opacity.
+int panelOpacity = Math.Clamp(
+    configuration.GetValue<int?>("PhotoText:PanelOpacity") ?? 210, -1, 255);
+
 if (configuration.GetValue<bool>("Directories:UseMyPictures"))
 {
     baseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), subDirectory);
@@ -99,6 +120,7 @@ using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
     }));
 
 logger = loggerFactory.CreateLogger<Program>();
+logger.LogInformation("Using config file: {ConfigPath}", configPath);
 
 string webpageUrl = configuration.GetValue<string>("StartPage") ?? "";
 if (string.IsNullOrWhiteSpace(webpageUrl))
@@ -268,8 +290,8 @@ foreach (string pageUrl in pageUrls)
                             textToAdd += $"\n{imageNameWithoutExtension}";
                         }
 
-                        DrawTextOnImage(canvas, bitmap, textToAdd, fontName, brandColors, true);
-                        DrawTextOnImage(canvas, bitmap, ogDescription, fontName, brandColors, false);
+                        DrawTextOnImage(canvas, bitmap, textToAdd, fontName, brandColors, true, panelOpacity);
+                        DrawTextOnImage(canvas, bitmap, ogDescription, fontName, brandColors, false, panelOpacity);
 
                         canvas.Flush();
 
@@ -642,33 +664,36 @@ float MeasureWrappedTextHeight(string text, SKFont font, float maxWidth)
 /// General function to handle text drawing on images using SkiaSharp.
 /// </summary>
 void DrawTextOnImage(SKCanvas canvas, SKBitmap bitmap, string? text,
-                     string fontName, List<SKColor> brandColors, bool isHeader)
+                     string fontName, List<SKColor> brandColors, bool isHeader, int panelOpacity)
 {
     if (string.IsNullOrWhiteSpace(text)) return;
 
-    // 1) Sample the background, pick a good foreground color
-    int startPercent = isHeader ? 0 : 90;
-    int endPercent = isHeader ? 10 : 100;
-    SKColor backgroundAvg = CalculateAverageColor(bitmap, startPercent, endPercent);
-    SKColor textColor = FindBestTextColor(backgroundAvg, brandColors);
+    int startPercent = isHeader ? 0 : 85;
+    int endPercent = isHeader ? 15 : 100;
 
-    // 2) Figure out our layout box
+    // Layout box — 88 % of width gives breathing room on both sides
     float boxTop = bitmap.Height * startPercent / 100f;
     float boxHeight = bitmap.Height * (endPercent - startPercent) / 100f;
-    float boxWidth = bitmap.Width * 0.80f;
+    float boxWidth = bitmap.Width * 0.88f;
     float boxLeft = (bitmap.Width - boxWidth) / 2;
 
-    // 3) Find the largest font size that fits both width and height
-    int initialSize = isHeader ? 16 : 12;
+    // When a dark panel is shown, text is chosen for contrast against black so
+    // bright/light brand colours and white win naturally.
+    // When there is no panel, sample the actual image background instead.
+    SKColor colorBase = panelOpacity > 0
+        ? SKColors.Black
+        : CalculateAverageColor(bitmap, startPercent, endPercent);
+    SKColor textColor = FindBestTextColor(colorBase, brandColors);
+
+    // Find the largest font size that still fits the box
+    int initialSize = isHeader ? 18 : 13;
     int bestSize = initialSize;
     const int maxSize = 72;
-
     var typeface = SKTypeface.FromFamilyName(fontName) ?? SKTypeface.Default;
 
     for (int size = initialSize; size <= maxSize; size++)
     {
         using var testFont = new SKFont(typeface, size);
-
         float measuredHeight = MeasureWrappedTextHeight(text, testFont, boxWidth);
         float maxSingleLineWidth = 0;
         foreach (var line in WrapText(text, testFont, boxWidth))
@@ -676,29 +701,44 @@ void DrawTextOnImage(SKCanvas canvas, SKBitmap bitmap, string? text,
             float w = testFont.MeasureText(line);
             if (w > maxSingleLineWidth) maxSingleLineWidth = w;
         }
-
-        if (maxSingleLineWidth > boxWidth || measuredHeight > boxHeight)
-        {
-            break;
-        }
-
+        if (maxSingleLineWidth > boxWidth || measuredHeight > boxHeight) break;
         bestSize = size;
     }
 
-    // 4) Draw it for real — stroke (outline) first, then fill, so letters
-    //    remain readable when the background under them has mixed light/dark
-    //    patches that would otherwise swallow a single-color fill.
     using var font = new SKFont(typeface, bestSize);
+    var wrappedLines = WrapText(text, font, boxWidth);
+    float totalTextHeight = wrappedLines.Count * font.Spacing;
+    float padding = bestSize * 0.6f;
 
-    // Outline is the opposite luminance of the fill. Dark fill gets a white
-    // halo; light fill gets a black halo.
-    SKColor outlineColor = ToRelativeLuminance(textColor) < 0.5
-        ? SKColors.White
-        : SKColors.Black;
+    float startY = isHeader
+        ? boxTop + padding + font.Spacing
+        : boxTop + (boxHeight - totalTextHeight) - padding + font.Spacing;
 
-    // Stroke width scales with font size but is clamped so small descriptions
-    // don't get muddy and giant titles don't get cartoonish.
-    float strokeWidth = Math.Clamp(bestSize * 0.09f, 2.0f, 6.0f);
+    // Draw semi-transparent dark panel (always dark — universally readable)
+    if (panelOpacity > 0)
+    {
+        float panelTop    = startY - font.Spacing - padding * 0.5f;
+        float panelBottom = startY + totalTextHeight + padding * 0.5f;
+        float panelLeft   = boxLeft - padding;
+        float panelRight  = boxLeft + boxWidth + padding;
+
+        using var panelPaint = new SKPaint
+        {
+            Color = new SKColor(0, 0, 0, (byte)panelOpacity),
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRoundRect(
+            new SKRoundRect(new SKRect(panelLeft, panelTop, panelRight, panelBottom), padding),
+            panelPaint);
+    }
+
+    // Outline policy: -1 = none, 0/+ = draw halo outline.
+    bool drawOutline = panelOpacity >= 0;
+
+    // Thin white outline (halo) for crispness, then fill
+    float strokeWidth = Math.Clamp(bestSize * 0.06f, 1.0f, 3.5f);
+    SKColor outlineColor = ToRelativeLuminance(textColor) < 0.5 ? SKColors.White : SKColors.Black;
 
     using var strokePaint = new SKPaint
     {
@@ -715,22 +755,12 @@ void DrawTextOnImage(SKCanvas canvas, SKBitmap bitmap, string? text,
         Style = SKPaintStyle.Fill
     };
 
-    var wrappedLines = WrapText(text, font, boxWidth);
-    float totalTextHeight = wrappedLines.Count * font.Spacing;
-
-    float startY;
-    if (isHeader)
-    {
-        startY = boxTop + 5 + font.Spacing;
-    }
-    else
-    {
-        startY = boxTop + (boxHeight - totalTextHeight) - 5 + font.Spacing;
-    }
-
     foreach (var line in wrappedLines)
     {
-        canvas.DrawText(line, boxLeft, startY, SKTextAlign.Left, font, strokePaint);
+        if (drawOutline)
+        {
+            canvas.DrawText(line, boxLeft, startY, SKTextAlign.Left, font, strokePaint);
+        }
         canvas.DrawText(line, boxLeft, startY, SKTextAlign.Left, font, fillPaint);
         startY += font.Spacing;
     }

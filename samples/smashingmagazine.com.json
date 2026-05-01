@@ -41,17 +41,33 @@
     "SubDirectory": "SmashingMagazine"
   },
 
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "SmashingMagazine",
+    "PhotoText": true
+  },
+
   "PhotoText": {
     "Font": "Helvetica Neue",
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
+    // Overlay mode for readability:
+    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
+    "PanelOpacity": 210,
     "BrandColors": [
       "#D33C47",
       "#1A1A1A",
       "#FFFFFF",
       "#3F4E58"
     ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
   }
 }
