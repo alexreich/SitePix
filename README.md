@@ -76,9 +76,10 @@ bundled Chromium (installed once via `playwright install chromium`).
 dotnet publish SitePix/SitePix.csproj -c Release -r osx-arm64 --self-contained \
   -p:PublishSingleFile=true -o dist/macos
 cd SitePix && playwright install chromium
-./dist/macos/SitePix samples/petapixel.com.json   # photography news from petapixel.com
-./dist/macos/SitePix                              # uses bundled appsettings.json
-# Pass any other profile from samples/ — see the table below for the full list.
+./dist/macos/SitePix                              # bundled default: petapixel.com
+./dist/macos/SitePix samples/kadampa.org.json     # the original Kadampa profile
+./dist/macos/SitePix samples/atlasobscura.com.json
+# Six profiles ship under samples/ — see the table below for the full list.
 ```
 
 Use `osx-x64` on Intel Macs, `win-x64` on Windows, `linux-x64` / `linux-arm64`
@@ -91,7 +92,32 @@ on Linux.
 On startup SitePix reads a JSON config. Pick one:
 
 1. Positional CLI arg — `sitepix path/to/profile.json`
-2. `appsettings.json` next to the binary (default)
+2. `appsettings.json` next to the binary (default — ships tuned for petapixel.com)
+
+### Coming from KadampaScreenSaver?
+
+The original Kadampa profile is bundled — just point SitePix at it:
+
+```bash
+# macOS / Linux — one-shot
+sitepix samples/kadampa.org.json
+
+# or make it your default by overwriting appsettings.json
+cp samples/kadampa.org.json /path/to/dist/macos/appsettings.json
+sitepix     # now scrapes kadampa.org with the original brand colors,
+            # exclude list, and 1024 px minimum
+```
+
+```powershell
+# Windows
+.\SitePix.exe samples\kadampa.org.json
+# or to make it persistent:
+Copy-Item samples\kadampa.org.json -Destination .\appsettings.json -Force
+```
+
+The kadampa.org profile keeps the legacy [`SubDirectory: KadampaScreenSaver`]
+and Kadampa brand-color palette, so existing screen savers pointed at
+`~/Pictures/KadampaScreenSaver` keep working with no further changes.
 
 ### Profile schema
 
