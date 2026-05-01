@@ -108,8 +108,16 @@ if (string.IsNullOrWhiteSpace(webpageUrl))
 }
 Directory.CreateDirectory(baseDirectory);
 
-// Create UrlLogger instance (store log file in baseDirectory for convenience)
-string urlLogFile = Path.Combine(baseDirectory, "VisitedUrls.log");
+// Store the URL history log in the OS app-data folder, not alongside images.
+// Windows: %LOCALAPPDATA%\SitePix\<SubDirectory>\VisitedUrls.log
+// macOS:   ~/Library/Application Support/SitePix/<SubDirectory>/VisitedUrls.log
+// Linux:   ~/.local/share/SitePix/<SubDirectory>/VisitedUrls.log
+string urlLogDir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "SitePix",
+    subDirectory);
+Directory.CreateDirectory(urlLogDir);
+string urlLogFile = Path.Combine(urlLogDir, "VisitedUrls.log");
 UrlLogger urlLogger = new UrlLogger(urlLogFile);
 
 // Cleanup old URL logs

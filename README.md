@@ -233,6 +233,40 @@ SitePix picks the color with the best contrast against the background it's
 sitting on, then draws an automatic black/white stroke around the glyphs
 for readability over mixed-luminance photos.
 
+### Reset visited history (start fresh)
+
+SitePix keeps a dedupe history file named `VisitedUrls.log` in the OS
+application-data folder (not in the image output folder). The path uses the
+`Directories:SubDirectory` value from your profile (default `SitePix`):
+
+| OS | Location |
+|---|---|
+| Windows | `%LOCALAPPDATA%\SitePix\<SubDirectory>\VisitedUrls.log` |
+| macOS | `~/Library/Application Support/SitePix/<SubDirectory>/VisitedUrls.log` |
+| Linux | `~/.local/share/SitePix/<SubDirectory>/VisitedUrls.log` |
+
+Delete that file to make SitePix treat every article URL as new again.
+
+```powershell
+# Windows — SubDirectory = "SitePix" (default)
+Remove-Item "$env:LOCALAPPDATA\SitePix\SitePix\VisitedUrls.log" -ErrorAction SilentlyContinue
+
+# Windows — custom SubDirectory, e.g. "Kadampa"
+Remove-Item "$env:LOCALAPPDATA\SitePix\Kadampa\VisitedUrls.log" -ErrorAction SilentlyContinue
+```
+
+```bash
+# macOS / Linux
+rm -f "$HOME/Library/Application Support/SitePix/SitePix/VisitedUrls.log"   # macOS default
+rm -f "$HOME/.local/share/SitePix/SitePix/VisitedUrls.log"                  # Linux default
+```
+
+If you are not sure which file applies to you:
+
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\SitePix" -Filter "VisitedUrls.log" -Recurse | Select-Object -ExpandProperty FullName
+```
+
 ---
 
 ## Scheduling
