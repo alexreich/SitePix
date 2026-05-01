@@ -77,7 +77,7 @@ dotnet publish SitePix/SitePix.csproj -c Release -r osx-arm64 --self-contained \
   -p:PublishSingleFile=true -o dist/macos
 cd SitePix && playwright install chromium
 ./dist/macos/SitePix                              # bundled default: petapixel.com
-./dist/macos/SitePix samples/kadampa.org.json     # the original Kadampa profile
+./dist/macos/SitePix samples/kadampa.org.json     # kadampa.org profile
 ./dist/macos/SitePix samples/atlasobscura.com.json
 # Six profiles ship under samples/ — see the table below for the full list.
 ```
@@ -94,7 +94,7 @@ On startup SitePix reads a JSON config. Pick one:
 1. Positional CLI arg — `sitepix path/to/profile.json`
 2. `appsettings.json` next to the binary (default — ships tuned for petapixel.com)
 
-### Coming from kadampa.org?
+### Coming for kadampa.org?
 
 The Kadampa profile ships with every release — both bundled next to
 the binary and as a standalone download URL. The simplest path on
