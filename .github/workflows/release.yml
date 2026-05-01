@@ -118,10 +118,16 @@ jobs:
             gh release create "$TAG" --draft --title "SitePix $VERSION" --notes-file release-notes.md --target "$GITHUB_SHA"
           fi
 
-      - name: Upload install.sh (curl-pipe installer for mac/linux)
+      - name: Upload install.sh + sample profiles
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "v$VERSION" install.sh --clobber
+        run: |
+          # The bootstrap installer for mac/linux:
+          gh release upload "v$VERSION" install.sh --clobber
+          # Every sample profile becomes a release asset, so binary users
+          # can curl them by name without hunting in the install dir:
+          #   curl -L .../releases/latest/download/kadampa.org.json -o my.json
+          gh release upload "v$VERSION" samples/*.json --clobber
 
   # ---------------------------------------------------------------------------
   # WINDOWS: self-contained exe → Inno installer → portable zip → winget + choco

@@ -94,30 +94,56 @@ On startup SitePix reads a JSON config. Pick one:
 1. Positional CLI arg — `sitepix path/to/profile.json`
 2. `appsettings.json` next to the binary (default — ships tuned for petapixel.com)
 
-### Coming from KadampaScreenSaver?
+### Coming from kadampa.org?
 
-The original Kadampa profile is bundled — just point SitePix at it:
+The Kadampa profile ships with every release — both bundled next to
+the binary and as a standalone download URL. The simplest path on
+any install method:
 
 ```bash
-# macOS / Linux — one-shot
-sitepix samples/kadampa.org.json
-
-# or make it your default by overwriting appsettings.json
-cp samples/kadampa.org.json /path/to/dist/macos/appsettings.json
-sitepix     # now scrapes kadampa.org with the original brand colors,
-            # exclude list, and 1024 px minimum
+# macOS / Linux — fetch and use in one shot:
+curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/kadampa.org.json -o ~/.sitepix.json
+sitepix ~/.sitepix.json
 ```
 
 ```powershell
-# Windows
-.\SitePix.exe samples\kadampa.org.json
-# or to make it persistent:
-Copy-Item samples\kadampa.org.json -Destination .\appsettings.json -Force
+# Windows:
+Invoke-WebRequest https://github.com/alexreich/SitePix/releases/latest/download/kadampa.org.json -OutFile $env:USERPROFILE\sitepix.json
+sitepix $env:USERPROFILE\sitepix.json
 ```
 
-The kadampa.org profile keeps the legacy [`SubDirectory: KadampaScreenSaver`]
-and Kadampa brand-color palette, so existing screen savers pointed at
-`~/Pictures/KadampaScreenSaver` keep working with no further changes.
+To make it the default so plain `sitepix` uses it on every run, copy
+the same JSON over the bundled `appsettings.json` — see
+[Switching profiles](#switching-profiles) below for where that file
+lives on each install method.
+
+The Kadampa profile pulls images to `~/Pictures/Kadampa`, applies
+the Kadampa brand-color overlay palette (dark blue / beige / sky
+blue), and uses a 1024 px minimum width.
+
+### Switching profiles
+
+The same five other profiles ship the same way — replace `kadampa.org`
+in the URL above with `petapixel.com`, `atlasobscura.com`,
+`fstoppers.com`, `thephoblographer.com`, or `smashingmagazine.com`.
+See [the profile table](#sample-profiles) for what each one fetches.
+
+If you'd rather edit `appsettings.json` directly (so plain `sitepix`
+uses your chosen profile every run), it lives next to the binary:
+
+| Install method | `appsettings.json` location |
+|---|---|
+| Windows installer / winget / Chocolatey | `C:\Program Files\SitePix\appsettings.json` |
+| Windows portable zip | next to `SitePix.exe` in the extracted folder |
+| macOS Homebrew | `$(brew --prefix)/Cellar/sitepix/<version>/libexec/appsettings.json` |
+| macOS / Linux portable tarball | next to `SitePix` in the extracted folder |
+| Linux `.deb` / `.rpm` | `/opt/sitepix/appsettings.json` |
+| Linux AppImage | inside the AppImage — easier to use the URL above and pass it on the CLI |
+| Built from source | `dist/<rid>/appsettings.json` |
+
+Each install also bundles the full `samples/` directory next to
+`appsettings.json`, so `sitepix samples/<name>.json` works without
+needing to `curl` anything.
 
 ### Profile schema
 
@@ -176,8 +202,13 @@ and Kadampa brand-color palette, so existing screen savers pointed at
 }
 ```
 
-Sample profiles live in [`samples/`](samples/) — file basename is the
-source domain. Most popular first:
+### Sample profiles
+
+Live in [`samples/`](samples/) — file basename is the source domain.
+Most popular first. Every profile is also published as a standalone
+download URL on the [latest release](https://github.com/alexreich/SitePix/releases/latest):
+
+    https://github.com/alexreich/SitePix/releases/latest/download/<domain>.json
 
 | Profile | Source | Notes |
 |---|---|---|
@@ -303,14 +334,6 @@ If you redistribute, please credit the project and link back.
 Scraped images remain the copyright of their original publishers. SitePix
 simply downloads what's publicly available on the configured site; please
 respect each site's terms of service and robots directives.
-
----
-
-## Project history
-
-The project started life as KadampaScreenSaver. See [`XPLATFORM.md`](XPLATFORM.md)
-for the cross-platform migration notes (System.Drawing → SkiaSharp,
-dynamic Playwright channel, per-OS scheduling).
 
 ---
 
