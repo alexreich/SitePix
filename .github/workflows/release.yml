@@ -27,7 +27,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       release_date: ${{ steps.resolve.outputs.release_date }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - id: resolve
         shell: bash
         run: |
@@ -63,7 +63,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Render release notes
         run: |
@@ -134,7 +134,7 @@ jobs:
       RELEASE_DATE: ${{ needs.version.outputs.release_date }}
       PUBLISH_DIR: SitePix\bin\Release\net10.0\win-x64\publish
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
@@ -246,7 +246,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
@@ -389,7 +389,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
@@ -453,7 +453,7 @@ jobs:
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       HOMEBREW_TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Publish release
         env:
