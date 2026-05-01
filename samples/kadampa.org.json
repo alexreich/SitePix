@@ -42,6 +42,8 @@
 
   "PhotoText": {
     "Font": "Palatino",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",

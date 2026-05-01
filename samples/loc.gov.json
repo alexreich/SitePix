@@ -1,0 +1,73 @@
+{
+  // Library of Congress. No API key required. Returns items with `image_url[]`
+  // arrays of progressively larger renditions; we pick the largest.
+  //
+  // Rights vary per item — most pre-1928 photographs are public domain in the
+  // US, but the LoC publishes plenty of in-copyright material too. The user
+  // is responsible for filtering by collection if a strict CC0/PD filter
+  // matters to them.
+  //
+  // API docs: https://www.loc.gov/apis/json-and-yaml/
+
+  "Source": {
+    "Provider": "loc",
+
+    // Path under loc.gov/. "photos" is the broad image search; swap to e.g.
+    // "collections/national-photo-company" or "collections/farm-security-administration"
+    // for a curated public-domain collection.
+    "Path": "photos",
+
+    // Optional free-text query.
+    "Query": "",
+
+    "MaxImagesPerItem": 1
+  },
+
+  "StartPage": "https://www.loc.gov/photos/",
+
+  "Policies": {
+    "LinkDepth": 20,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "MinWidthPx": 1024,
+    "ImageUrlExcludes": [],
+    "RequestDelayMs": 500
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-LoC"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "LibraryOfCongress",
+    "PhotoText": true
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "PanelOpacity": 210,
+    "BrandColors": [
+      "#0D2240",
+      "#A91D2D",
+      "#FFFFFF",
+      "#C0A062"
+    ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
+  }
+}

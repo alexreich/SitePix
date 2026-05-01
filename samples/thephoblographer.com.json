@@ -35,12 +35,6 @@
 
   "Directories": {
     "UseMyPictures": true,
-    "PhotoText": true,
-    "SubDirectory": "ThePhoblographer"
-  },
-
-  "Directories": {
-    "UseMyPictures": true,
     "Base": "",
     "SubDirectory": "ThePhoblographer",
     "PhotoText": true
@@ -48,6 +42,8 @@
 
   "PhotoText": {
     "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",

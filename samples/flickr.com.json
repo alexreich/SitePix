@@ -1,0 +1,69 @@
+{
+  // Flickr Commons — institutional public-domain pool from the Library of
+  // Congress, NASA, Internet Archive, NYPL, and dozens more. Requires a free
+  // Flickr API key.
+  //
+  // Get a key:   https://www.flickr.com/services/apps/create/apply/
+  // API docs:    https://www.flickr.com/services/api/flickr.photos.search.html
+  //
+  // Set the key via Source:ApiKey or Source:ApiKeyEnv.
+
+  "Source": {
+    "Provider": "flickrcommons",
+
+    // Either inline or via env var. One of the two must be set.
+    "ApiKey": "",
+    "ApiKeyEnv": "FLICKR_API_KEY",
+
+    // Optional free-text filter — narrows the Commons pool to a topic.
+    "Query": ""
+  },
+
+  "StartPage": "https://www.flickr.com/commons",
+
+  "Policies": {
+    "LinkDepth": 20,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "MinWidthPx": 1024,
+    "ImageUrlExcludes": [],
+    "RequestDelayMs": 500
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-FlickrCommons"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "FlickrCommons",
+    "PhotoText": true
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "PanelOpacity": 210,
+    "BrandColors": [
+      "#FF0084",
+      "#0063DC",
+      "#FFFFFF",
+      "#1A1A1A"
+    ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
+  }
+}

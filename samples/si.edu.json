@@ -1,0 +1,75 @@
+{
+  // Smithsonian Open Access. 4M+ CC0 items spanning art, natural history, and
+  // science. Requires a free api.data.gov key.
+  //
+  // Get a key:   https://api.data.gov/signup/
+  // EDAN docs:   https://edan.si.edu/openaccess/apidocs/
+  //
+  // Set the key via Source:ApiKey or Source:ApiKeyEnv (env var name). The
+  // built-in DEMO_KEY works for exploration but is heavily throttled.
+
+  "Source": {
+    "Provider": "smithsonian",
+
+    // EDAN solr-style query. The default already filters to CC0 imagery; bias
+    // by adding terms like "AND topic:Botany" or "AND unit_code:NMNHANTHRO".
+    "Query": "online_media_type:Images AND online_media_rights:CC0",
+
+    // Either inline or via env var. Leave both blank to fall back to DEMO_KEY.
+    "ApiKey": "",
+    "ApiKeyEnv": "SMITHSONIAN_API_KEY",
+
+    "MaxImagesPerItem": 1
+  },
+
+  "StartPage": "https://www.si.edu/openaccess",
+
+  "Policies": {
+    "LinkDepth": 20,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "MinWidthPx": 1024,
+    "ImageUrlExcludes": [
+      "_thumb",
+      "/thumb/"
+    ],
+    "RequestDelayMs": 500
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-Smithsonian"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "Smithsonian",
+    "PhotoText": true
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "PanelOpacity": 210,
+    "BrandColors": [
+      "#002D72",
+      "#FFC72C",
+      "#FFFFFF",
+      "#7A0019"
+    ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
+  }
+}

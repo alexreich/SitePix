@@ -37,12 +37,6 @@
 
   "Directories": {
     "UseMyPictures": true,
-    "PhotoText": true,
-    "SubDirectory": "SmashingMagazine"
-  },
-
-  "Directories": {
-    "UseMyPictures": true,
     "Base": "",
     "SubDirectory": "SmashingMagazine",
     "PhotoText": true
@@ -50,6 +44,8 @@
 
   "PhotoText": {
     "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",

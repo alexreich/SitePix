@@ -1,0 +1,67 @@
+{
+  // NASA Image and Video Library. No API key required. Search returns
+  // thumbnails plus a per-item asset-list URL; we follow it to fetch the
+  // largest available rendition (~orig.jpg, ~large.jpg, ~medium.jpg).
+  //
+  // NASA media is generally free of copyright in the US (with limited
+  // exceptions); see https://www.nasa.gov/multimedia/guidelines/.
+  // API docs: https://api.nasa.gov/ ("NASA Image and Video Library").
+
+  "Source": {
+    "Provider": "nasa",
+
+    // Optional free-text query — try "galaxy", "moon", "Apollo", "earth from space".
+    "Query": ""
+  },
+
+  "StartPage": "https://images.nasa.gov/",
+
+  "Policies": {
+    "LinkDepth": 20,
+    "RetentionDays": 7
+  },
+
+  "Scraper": {
+    "MinWidthPx": 1024,
+    "ImageUrlExcludes": [
+      "~thumb",
+      "~small"
+    ],
+    "RequestDelayMs": 500
+  },
+
+  "Task Scheduler": {
+    "StartTime": "",
+    "Id": "SitePix-NASA"
+  },
+
+  "Directories": {
+    "UseMyPictures": true,
+    "Base": "",
+    "SubDirectory": "NASA",
+    "PhotoText": true
+  },
+
+  "PhotoText": {
+    "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
+    "DateInclude": true,
+    "DateFormat": "MM/dd",
+    "DatePrefix": " - ",
+    "ImageFileName": false,
+    "PanelOpacity": 210,
+    "BrandColors": [
+      "#0B3D91",
+      "#FC3D21",
+      "#FFFFFF",
+      "#000000"
+    ]
+  },
+
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "System": "Warning"
+  }
+}

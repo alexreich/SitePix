@@ -1,5 +1,5 @@
 {
-  "StartPage": "https://fstoppers.com/",
+  "StartPage": "https://fstoppers.com/potd",
 
   "Policies": {
     "LinkDepth": 6,
@@ -7,37 +7,101 @@
   },
 
   "Scraper": {
-    "_comment_UrlPattern": "Fstoppers organizes posts under category prefixes (/news, /photo, /education, /business, /inspiration). Articles end with a numeric id.",
-    "UrlPattern": "/(news|photo|education|business|inspiration|originals|reviews)/[a-z0-9-]+-?\\d*/?$",
-    "MinWidthPx": 1200,
+    "_comment_UrlPattern": "Fstoppers articles live under /news, /photo, /education, /business, /inspiration, /originals, /reviews (slug + numeric id). The Photo of the Day index at /potd links to /media/<numeric-id> instead — both are matched.",
+    "UrlPattern": "/(news|photo|education|business|inspiration|originals|reviews|media)/[a-z0-9-]+-?\\d*/?$",
+    "MinWidthPx": 1024,
     "ImageUrlExcludes": [
       "thumb",
       "150x",
       "300x",
+      "-100x",
+      "-200x",
       "avatar",
       "gravatar",
       "logo",
-      "icon"
+      "icon",
+      "sprite",
+      "sponsor",
+      "/ads/",
+      "ad-",
+      "doubleclick",
+      "googletagmanager",
+      "googlesyndication",
+      "disquscdn",
+      "/styles/thumbnail/",
+      "/styles/square_small/",
+      "/styles/small/",
+      "/styles/medium/",
+      "/styles/profile/"
     ],
     "ContentSelectors": [
       "main article .article__body",
       "main article .entry-content",
       "article .article__body",
+      ".photo-page-content",
+      ".photo-detail",
+      "main .photo",
       "main article",
       "article",
       "body"
-    ]
+    ],
+
+    // Within the content scope, prune known widgets so only editorial photos
+    // survive. Comments on Fstoppers are Disqus (iframe) — the iframe content
+    // never reaches us, but stray Disqus avatars + the discussion container
+    // are listed here defensively.
+    "ContentExcludeSelectors": [
+      ".related-content",
+      ".related-articles",
+      ".related-posts",
+      ".related-photos",
+      ".more-from",
+      ".more-from-user",
+      ".more-articles",
+      ".user-photos",
+      ".user-other-photos",
+      ".profile-photos",
+      ".article__related",
+      ".article__author",
+      ".author-bio",
+      ".author-info",
+      ".byline",
+      ".share-buttons",
+      ".social-share",
+      ".article__share",
+      ".sharedaddy",
+      ".comments",
+      "#comments",
+      "#disqus_thread",
+      ".disqus",
+      ".newsletter",
+      ".newsletter-signup",
+      ".email-signup",
+      ".advertisement",
+      ".ad",
+      ".ad-container",
+      ".adsbygoogle",
+      ".promo",
+      ".sponsored",
+      ".sponsor",
+      "aside",
+      "[role=complementary]"
+    ],
+
+    // Real Fstoppers photos live on fstoppers.com / cdn.fstoppers.com — the
+    // same-origin filter (with subdomain match) keeps both and discards
+    // Disqus avatars, Twitter/Instagram embeds, and ad-network pixels.
+    "SameOriginOnly": true,
+
+    // Milliseconds of delay between fetching consecutive article pages.
+    // Fstoppers serves a "Too Many Requests" stub when hit too fast — keep
+    // this generous (2000 ms) for reliability. 0 = no pacing.
+    "RequestDelayMs": 2000
   },
 
   "Task Scheduler": {
     "StartTime": "",
     "Id": "SitePix-Fstoppers"
-  },
-
-  "Directories": {
-    "UseMyPictures": true,
-    "PhotoText": true,
-    "SubDirectory": "Fstoppers"
   },
 
   "Directories": {
@@ -49,6 +113,8 @@
 
   "PhotoText": {
     "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",

@@ -9,14 +9,32 @@
   "Scraper": {
     "UrlPattern": "/{Year}/\\d{2}/\\d{2}/",
     "MinWidthPx": 1200,
+
+    // Substring match against the image URL, case-insensitive.
+    // PetaPixel inlines a lot of promotional graphics, store badges, and
+    // social/share artifacts that are larger than MinWidthPx but aren't
+    // editorial — listed here so they're dropped before download.
     "ImageUrlExcludes": [
       "-150x",
       "-300x",
+      "-768x",
       "avatar",
       "gravatar",
       "logo",
-      "icon"
+      "icon",
+      "sprite",
+      "/emoji/",
+      "/plugins/",
+      "/themes/",
+      "mailchimp",
+      "newsletter",
+      "sponsor",
+      "/ads/",
+      "doubleclick",
+      "googletagmanager",
+      "googlesyndication"
     ],
+
     "ContentSelectors": [
       "main article .entry-content",
       "article .entry-content",
@@ -24,18 +42,51 @@
       "article",
       ".post-content",
       "body"
-    ]
+    ],
+
+    // Anything inside one of these selectors (within the content scope) is
+    // skipped — keeps related-articles widgets, share bars, author bios,
+    // newsletter forms and ad units from polluting the image set.
+    "ContentExcludeSelectors": [
+      ".related-posts",
+      ".jp-relatedposts",
+      ".yarpp-related",
+      ".related-articles",
+      ".more-from",
+      ".newsletter",
+      ".newsletter-signup",
+      ".email-signup",
+      ".mc-signup",
+      ".mailchimp",
+      ".sharedaddy",
+      ".share-buttons",
+      ".social-share",
+      ".author-bio",
+      ".author-info",
+      ".byline-author",
+      ".comments",
+      "#comments",
+      ".advertisement",
+      ".ad",
+      ".ad-container",
+      ".adsbygoogle",
+      ".promo",
+      ".sponsored",
+      ".sponsor",
+      ".wp-embed",
+      "aside",
+      "[role=complementary]"
+    ],
+
+    // Drop images served from third-party hosts (ad networks, trackers,
+    // syndicated embeds). PetaPixel's editorial photos all live on
+    // petapixel.com, so this is a strong signal.
+    "SameOriginOnly": true
   },
 
   "Task Scheduler": {
     "StartTime": "",
     "Id": "SitePix-PetaPixel"
-  },
-
-  "Directories": {
-    "UseMyPictures": true,
-    "PhotoText": true,
-    "SubDirectory": "PetaPixel"
   },
 
   "Directories": {
@@ -47,6 +98,8 @@
 
   "PhotoText": {
     "Font": "Helvetica Neue",
+    "TitleFontScale": 1.0,
+    "SubtitleFontScale": 1.0,
     "DateInclude": true,
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",

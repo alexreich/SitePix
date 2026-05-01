@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 using Microsoft.Playwright;
 using SitePix;
+using SitePix.Sources;
 using SkiaSharp;
 
 // First positional CLI arg selects a config profile file — e.g.
@@ -56,6 +57,10 @@ else
 }
 
 HttpClient client = new HttpClient();
+// Some catalog APIs (LoC, Smithsonian, NYPL) reject the default .NET UA. Use
+// the same browser-shaped UA the Playwright path advertises — harmless for
+// existing image downloads and good citizenship for API hosts.
+client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", GetUserAgent());
 ILogger<Program> logger = null!;
 IConfigurationRoot configuration = new ConfigurationBuilder()
     .AddJsonFile(configPath, optional: false, reloadOnChange: false)
@@ -69,6 +74,8 @@ int retentionDays = configuration.GetValue<int>("Policies:RetentionDays");
 string baseDirectory = configuration.GetValue<string>("Directories:Base") ?? "";
 string subDirectory = configuration.GetValue<string>("Directories:SubDirectory") ?? "SitePix";
 string fontName = configuration.GetValue<string>("PhotoText:Font") ?? "sans-serif";
+double titleFontScale = configuration.GetValue<double?>("PhotoText:TitleFontScale") ?? 1.0;
+double subtitleFontScale = configuration.GetValue<double?>("PhotoText:SubtitleFontScale") ?? 1.0;
 
 // ─── Scraper config (all site-specific tuning lives here) ────────────────────
 // {Year} is substituted with the current 4-digit year so a profile stays
@@ -90,6 +97,21 @@ string[] contentSelectors = configuration.GetSection("Scraper:ContentSelectors")
         "article",
         "body"
     };
+
+// CSS selectors whose contents are skipped — keeps related-articles widgets,
+// newsletter signups, sponsor blocks, share bars, etc. from polluting the
+// download list. Empty by default (backwards-compatible); profiles opt in.
+string[] contentExcludeSelectors = configuration.GetSection("Scraper:ContentExcludeSelectors").Get<string[]>()
+    ?? Array.Empty<string>();
+
+// When true, images hosted on third-party domains (CDNs, ad networks, social
+// embeds) are dropped — only same-site images survive. Off by default.
+bool sameOriginOnly = configuration.GetValue<bool?>("Scraper:SameOriginOnly") ?? false;
+
+// Delay between consecutive article-page fetches, in milliseconds. Trips
+// less aggressive per-IP rate limits (fstoppers serves a "Too Many Requests"
+// stub when hit too fast). Default 1500 ms; set 0 to disable.
+int requestDelayMs = configuration.GetValue<int?>("Scraper:RequestDelayMs") ?? 1500;
 
 // Brand colors for text overlay — configurable per profile, with a neutral
 // fallback set (Kadampa palette) if unspecified.
@@ -122,12 +144,6 @@ using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
 logger = loggerFactory.CreateLogger<Program>();
 logger.LogInformation("Using config file: {ConfigPath}", configPath);
 
-string webpageUrl = configuration.GetValue<string>("StartPage") ?? "";
-if (string.IsNullOrWhiteSpace(webpageUrl))
-{
-    Console.Error.WriteLine("StartPage is not configured. Set \"StartPage\" in the config file.");
-    Environment.Exit(1);
-}
 Directory.CreateDirectory(baseDirectory);
 
 // Store the URL history log in the OS app-data folder, not alongside images.
@@ -145,92 +161,24 @@ UrlLogger urlLogger = new UrlLogger(urlLogFile);
 // Cleanup old URL logs
 urlLogger.Cleanup(30);
 
-// Download the webpage
-logger.LogInformation("Starting download of webpage");
-
-// Extract page URLs from HTML
-string htmlContent = await DownloadHtmlContentAsync(webpageUrl);
-var pageUrls = Regex.Matches(htmlContent, "<a.*?href=[\"'](.*?)[\"']")
-    .Cast<Match>()
-    .Select(m => m.Groups[1].Value)
-    // resolve relative -> absolute
-    .Select(href =>
-    {
-        var u = new Uri(href, UriKind.RelativeOrAbsolute);
-        return u.IsAbsoluteUri
-            ? u
-            : new Uri(new Uri(webpageUrl), href);
-    })
-    // skip anything we already logged
-    .Where(u => !urlLogger.AlreadyVisited(u.AbsoluteUri))
-    .Select(u => u.AbsoluteUri)
-    .ToList();
-
-// Check if any page URLs were found
-if (pageUrls.Count == 0)
+// Per-image work shared by both modes (HTML scrape + JSON API). Closes over
+// configuration / logger / paint settings; called once per "page" or "API
+// item" with the image set + the title/subtitle to overlay.
+void ProcessImageBatch(IEnumerable<string> imageUrls, string title, string? overlaySubtitle)
 {
-    logger.LogError("No page URLs found in the HTML");
-    return;
-}
-
-logger.LogInformation("URL pattern: {Pattern}", urlPatternRaw);
-
-int pageCount = 0;
-// Download images from each page
-foreach (string pageUrl in pageUrls)
-{
-    // Skip pages that don't match the configured URL pattern.
-    if (!urlRegex.IsMatch(pageUrl))
-    {
-        continue;
-    }
-    if (pageCount == linkDepth)
-    {
-        break;
-    }
-
-    // Record that we've visited this URL
-    urlLogger.LogUrl(pageUrl);
-
-    var (innerHtml, imageUrls) = await LoadContentAndImagesAsync(pageUrl);
-
-    if (imageUrls == null || imageUrls.Count == 0)
-    {
-        logger.LogWarning($"No images found on page: {pageUrl}");
-        continue;
-    }
-
-    // Filter out images whose URL matches any configured exclude pattern
-    // (case-insensitive substring match).
-    var filteredImageUrls = new List<string>();
-    foreach (var imageUrl in imageUrls)
-    {
-        if (string.IsNullOrEmpty(imageUrl)) continue;
-        string imageUrlLower = imageUrl.ToLowerInvariant();
-        bool excluded = false;
-        foreach (var ex in imageUrlExcludes)
-        {
-            if (!string.IsNullOrEmpty(ex) && imageUrlLower.Contains(ex.ToLowerInvariant()))
-            {
-                excluded = true;
-                break;
-            }
-        }
-        if (!excluded) filteredImageUrls.Add(imageUrl);
-    }
-    var html = await LoadContentAndImagesAsync(pageUrl);
-    var doc = new HtmlDocument();
-    doc.LoadHtml(html.htmlContent);
-
-    var ogDescription = doc.DocumentNode.SelectSingleNode("//meta[@property='og:description']")?.GetAttributeValue("content", string.Empty);
-    var title = CleanText(doc.DocumentNode.SelectSingleNode("//meta[@property='og:title']")?.GetAttributeValue("content", string.Empty));
-    var publishedTime = doc.DocumentNode.SelectSingleNode("//meta[@property='article:published_time']")?.GetAttributeValue("content", string.Empty);
-
-    Parallel.ForEach(filteredImageUrls, imageUrl =>
+    Parallel.ForEach(imageUrls, imageUrl =>
     {
         try
         {
-            string fileName = Path.GetFileName(imageUrl);
+            // Strip query string before deriving the local filename. Drupal
+            // CDNs (fstoppers cdn.fstoppers.com) sign URLs with `?itok=<token>`
+            // and `?` is illegal in Windows filenames — without this, every
+            // download silently fails.
+            string urlPathOnly;
+            try { urlPathOnly = new Uri(imageUrl).LocalPath; }
+            catch { urlPathOnly = imageUrl.Split('?')[0]; }
+            string fileName = Path.GetFileName(urlPathOnly);
+            if (string.IsNullOrWhiteSpace(fileName)) return;
 
             DateTime futureDate = new DateTime(9999, 12, 31);
             DateTime publishedDate = DateTime.UtcNow;
@@ -290,8 +238,8 @@ foreach (string pageUrl in pageUrls)
                             textToAdd += $"\n{imageNameWithoutExtension}";
                         }
 
-                        DrawTextOnImage(canvas, bitmap, textToAdd, fontName, brandColors, true, panelOpacity);
-                        DrawTextOnImage(canvas, bitmap, ogDescription, fontName, brandColors, false, panelOpacity);
+                        DrawTextOnImage(canvas, bitmap, textToAdd, fontName, brandColors, true, panelOpacity, titleFontScale);
+                        DrawTextOnImage(canvas, bitmap, overlaySubtitle, fontName, brandColors, false, panelOpacity, subtitleFontScale);
 
                         canvas.Flush();
 
@@ -314,8 +262,140 @@ foreach (string pageUrl in pageUrls)
             logger.LogError($"Error downloading image: {imageUrl}. Error: {ex.Message}");
         }
     });
+}
 
-    pageCount++;
+// Apply image-URL exclude patterns the same way for either mode.
+List<string> FilterByExcludes(IEnumerable<string> urls)
+{
+    var result = new List<string>();
+    foreach (var u in urls)
+    {
+        if (string.IsNullOrEmpty(u)) continue;
+        string lower = u.ToLowerInvariant();
+        bool excluded = false;
+        foreach (var ex in imageUrlExcludes)
+        {
+            if (!string.IsNullOrEmpty(ex) && lower.Contains(ex.ToLowerInvariant()))
+            {
+                excluded = true;
+                break;
+            }
+        }
+        if (!excluded) result.Add(u);
+    }
+    return result;
+}
+
+// ─── Mode dispatch ───────────────────────────────────────────────────────────
+// API mode (JSON catalog) vs HTML mode (Playwright + DOM scraping). API mode
+// activates when `Source:Provider` is set; otherwise the original scraping
+// path runs unchanged so existing profiles (kadampa, fstoppers, …) keep
+// working.
+var apiSource = ApiSourceFactory.TryCreate(configuration, client, logger);
+if (apiSource != null)
+{
+    string providerName = configuration.GetValue<string>("Source:Provider") ?? "?";
+    logger.LogInformation("Using API source: {Provider}", providerName);
+
+    int processed = 0;
+    await foreach (var item in apiSource.FetchAsync(linkDepth))
+    {
+        if (processed >= linkDepth) break;
+        if (urlLogger.AlreadyVisited(item.SourceUrl)) continue;
+
+        // Same pacing as HTML mode — public APIs throttle too.
+        if (processed > 0 && requestDelayMs > 0)
+        {
+            await Task.Delay(requestDelayMs);
+        }
+
+        urlLogger.LogUrl(item.SourceUrl);
+
+        var filtered = FilterByExcludes(item.ImageUrls);
+        if (filtered.Count == 0)
+        {
+            logger.LogWarning("No usable images for item: {Url}", item.SourceUrl);
+            continue;
+        }
+
+        ProcessImageBatch(filtered, CleanText(item.Title), item.Subtitle);
+        processed++;
+    }
+
+    logger.LogInformation("API source processed {Count} item(s).", processed);
+}
+else
+{
+    // HTML mode (the original Playwright path). StartPage is required here.
+    string webpageUrl = configuration.GetValue<string>("StartPage") ?? "";
+    if (string.IsNullOrWhiteSpace(webpageUrl))
+    {
+        Console.Error.WriteLine("StartPage is not configured. Set \"StartPage\" in the config file (or set Source:Provider to use an API source).");
+        Environment.Exit(1);
+    }
+
+    logger.LogInformation("Starting download of webpage");
+
+    // Extract page URLs from the start page via a real browser. Anchors are
+    // pulled from the live DOM after a scroll-driven hydration pass — the raw
+    // HTML on JS-rendered indexes (fstoppers /potd) often only ships one
+    // <a> until the gallery script runs.
+    var startPageLinks = await LoadStartPageLinksAsync(webpageUrl);
+    var pageUrls = startPageLinks
+        .Where(h => Uri.TryCreate(h, UriKind.Absolute, out _))
+        .Where(h => !urlLogger.AlreadyVisited(h))
+        .ToList();
+
+    if (pageUrls.Count == 0)
+    {
+        logger.LogError("No page URLs found in the HTML");
+    }
+    else
+    {
+        logger.LogInformation("URL pattern: {Pattern}", urlPatternRaw);
+        var matchingUrls = pageUrls.Where(u => urlRegex.IsMatch(u)).Distinct().ToList();
+        logger.LogInformation("Found {Total} hrefs on start page, {Matching} match the URL pattern",
+            pageUrls.Count, matchingUrls.Count);
+
+        int pageCount = 0;
+        foreach (string pageUrl in matchingUrls)
+        {
+            if (pageCount == linkDepth) break;
+
+            // Be polite — pacing requests avoids tripping per-IP rate limits
+            // (fstoppers serves a "Too Many Requests" stub when hit too fast).
+            if (pageCount > 0 && requestDelayMs > 0)
+            {
+                await Task.Delay(requestDelayMs);
+            }
+
+            urlLogger.LogUrl(pageUrl);
+
+            var (innerHtml, imageUrls) = await LoadContentAndImagesAsync(pageUrl);
+
+            if (imageUrls == null || imageUrls.Count == 0)
+            {
+                logger.LogWarning($"No images found on page: {pageUrl}");
+                continue;
+            }
+
+            var filteredImageUrls = FilterByExcludes(imageUrls);
+            if (sameOriginOnly)
+            {
+                filteredImageUrls = filteredImageUrls.Where(u => IsSameSite(u, webpageUrl)).ToList();
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(innerHtml);
+
+            var ogDescription = doc.DocumentNode.SelectSingleNode("//meta[@property='og:description']")?.GetAttributeValue("content", string.Empty);
+            var title = CleanText(doc.DocumentNode.SelectSingleNode("//meta[@property='og:title']")?.GetAttributeValue("content", string.Empty));
+
+            ProcessImageBatch(filteredImageUrls, title, ogDescription);
+
+            pageCount++;
+        }
+    }
 }
 
 // Get the current date
@@ -362,16 +442,30 @@ string? GetBrowserChannel()
 }
 
 /// <summary>
-/// Returns a platform-appropriate user agent string.
+/// Returns a current-Chrome user agent. A bare default .NET / Playwright UA
+/// gets refused by several catalog APIs (LoC, Smithsonian) and degrades the
+/// HTML response on a few CDNs, so we identify as a normal browser.
 /// </summary>
 string GetUserAgent()
 {
     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        return "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.5481.77 Safari/537.36";
+        return "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.5481.77 Safari/537.36";
-    return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.5481.77 Safari/537.36";
+        return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+    return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 }
+
+/// <summary>
+/// Standard headers a real browser sends with a top-level navigation. Set
+/// here because Playwright's default context omits a few of them and some
+/// servers reply with a stripped-down page when they're missing.
+/// </summary>
+Dictionary<string, string> GetExtraHttpHeaders() => new()
+{
+    ["Accept-Language"] = "en-US,en;q=0.9",
+    ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    ["Upgrade-Insecure-Requests"] = "1"
+};
 
 async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsync(string url)
 {
@@ -379,24 +473,16 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
     var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
     {
         Channel = GetBrowserChannel(),
-        Headless = true,
-        IgnoreDefaultArgs = new[] { "--enable-automation" },
-        Args = new[] { "--disable-blink-features=AutomationControlled" }
+        Headless = true
     });
 
     var context = await browser.NewContextAsync(new BrowserNewContextOptions
     {
         UserAgent = GetUserAgent(),
-        ViewportSize = new ViewportSize { Width = 1920, Height = 1080 }
+        ViewportSize = new ViewportSize { Width = 1920, Height = 1080 },
+        Locale = "en-US",
+        ExtraHTTPHeaders = GetExtraHttpHeaders()
     });
-
-    await context.AddInitScriptAsync(@"
-        () => {
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-        }
-    ");
 
     var page = await context.NewPageAsync();
     // DOMContentLoaded (not NetworkIdle) — ad/tracker-heavy sites like
@@ -411,21 +497,50 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
     await page.WaitForSelectorAsync("body", new PageWaitForSelectorOptions { Timeout = 10000 });
     await page.WaitForTimeoutAsync(2000);
 
+    // Trigger lazy-loaded images by scrolling to the bottom, then back to top.
+    // Sites like petapixel.com only swap data-src → src once images enter the
+    // viewport, so without this we'd grab placeholder pixels for everything
+    // below the fold.
+    await page.EvaluateAsync(@"
+        async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const step = Math.max(400, Math.floor(window.innerHeight * 0.9));
+            for (let y = 0; y < document.body.scrollHeight; y += step) {
+                window.scrollTo(0, y);
+                await sleep(150);
+            }
+            window.scrollTo(0, 0);
+            await sleep(300);
+        }
+    ");
+
     string content = await page.ContentAsync();
 
-    // Wait for the actual post content (avoids grabbing images from the hamburger/mega-menu)
-    await page.WaitForSelectorAsync("article", new PageWaitForSelectorOptions
+    // Best-effort wait for content imagery. Petapixel surfaces editorial
+    // shots inside <figure>; Drupal photo galleries (fstoppers /media/) use
+    // bare <img>; some pages have neither for a few seconds. Try both, but
+    // *never* fail the whole crawl if the wait times out — the scroll loop
+    // and 2 s sleep above are usually enough.
+    try
     {
-        Timeout = 10000,
-        State = WaitForSelectorState.Attached
-    });
+        await page.WaitForSelectorAsync("figure, article img, main img",
+            new PageWaitForSelectorOptions
+            {
+                Timeout = 8000,
+                State = WaitForSelectorState.Attached
+            });
+    }
+    catch (TimeoutException) { /* proceed with whatever loaded */ }
 
-    // Ship the configured selector list into the page context so each profile
-    // can aim scraping at a different theme's content container.
+    // Ship the configured selector lists into the page context so each profile
+    // can aim scraping at a different theme's content container, and prune
+    // related-articles / newsletter / ad widgets that sit inside it.
     string selectorsJson = JsonSerializer.Serialize(contentSelectors);
+    string excludeJson = JsonSerializer.Serialize(contentExcludeSelectors);
     var images = await page.EvaluateAsync<string[]>($@"
         () => {{
             const selectors = {selectorsJson};
+            const excludeSelectors = {excludeJson};
             let root = null;
             for (const sel of selectors) {{
                 root = document.querySelector(sel);
@@ -433,13 +548,39 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
             }}
             if (!root) root = document.body;
 
-            const pickSrc = (img) =>
-                img.currentSrc ||
-                img.src ||
-                img.getAttribute('data-src') ||
-                img.getAttribute('data-lazy-src') ||
-                img.getAttribute('data-original') ||
-                '';
+            // Pick the largest URL for each img: prefer the widest srcset
+            // candidate, then currentSrc, then a chain of common lazy-load
+            // attributes used by WordPress / Jetpack / lazysizes / etc.
+            const pickFromSrcset = (srcset) => {{
+                if (!srcset) return '';
+                const parts = srcset.split(',').map(s => s.trim()).filter(Boolean);
+                let bestUrl = '';
+                let bestW = -1;
+                for (const part of parts) {{
+                    const segs = part.split(/\s+/);
+                    const url = segs[0];
+                    let w = 0;
+                    for (let i = 1; i < segs.length; i++) {{
+                        const m = segs[i].match(/^(\d+)w$/);
+                        if (m) w = parseInt(m[1], 10);
+                    }}
+                    if (url && w > bestW) {{ bestW = w; bestUrl = url; }}
+                }}
+                return bestUrl;
+            }};
+
+            const pickSrc = (img) => {{
+                const fromSrcset = pickFromSrcset(
+                    img.getAttribute('srcset') || img.getAttribute('data-srcset') || '');
+                if (fromSrcset) return fromSrcset;
+                return img.currentSrc ||
+                    img.src ||
+                    img.getAttribute('data-src') ||
+                    img.getAttribute('data-lazy-src') ||
+                    img.getAttribute('data-original') ||
+                    img.getAttribute('data-full-src') ||
+                    '';
+            }};
 
             const isInNavOrMenu = (img) =>
                 !!img.closest(
@@ -448,8 +589,17 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
                     '#menu, #site-navigation, #mobile-menu'
                 );
 
+            const isInExcluded = (img) => {{
+                if (!excludeSelectors || excludeSelectors.length === 0) return false;
+                for (const sel of excludeSelectors) {{
+                    try {{ if (img.closest(sel)) return true; }} catch (e) {{ }}
+                }}
+                return false;
+            }};
+
             const urls = Array.from(root.querySelectorAll('img'))
                 .filter(img => !isInNavOrMenu(img))
+                .filter(img => !isInExcluded(img))
                 .map(pickSrc)
                 .filter(Boolean);
 
@@ -459,6 +609,29 @@ async Task<(string htmlContent, List<string> imageUrls)> LoadContentAndImagesAsy
 
     await browser.CloseAsync();
     return (content, images.Where(src => !string.IsNullOrWhiteSpace(src)).Distinct().ToList());
+}
+
+// Same-site check: image host equals the start-page host or is a subdomain of
+// it. `www.` is stripped on both sides so `www.petapixel.com` still matches
+// `cdn.petapixel.com`. Used by Scraper:SameOriginOnly to drop ad-network /
+// social-embed images entirely.
+static bool IsSameSite(string imageUrl, string startUrl)
+{
+    try
+    {
+        string Normalize(string host)
+        {
+            host = host.ToLowerInvariant();
+            return host.StartsWith("www.") ? host.Substring(4) : host;
+        }
+        var imgHost = Normalize(new Uri(imageUrl).Host);
+        var startHost = Normalize(new Uri(startUrl).Host);
+        return imgHost == startHost || imgHost.EndsWith("." + startHost);
+    }
+    catch
+    {
+        return false;
+    }
 }
 
 async Task DownloadFile(string url, string outputPath)
@@ -474,29 +647,28 @@ async Task DownloadFile(string url, string outputPath)
     await File.WriteAllBytesAsync(outputPath, data);
 }
 
-async Task<string> DownloadHtmlContentAsync(string url)
+// Loads the index/start page in a real browser, scrolls to trigger any
+// JS-driven lazy population (fstoppers /potd is hydrated client-side — the
+// initial HTML contains a single <a> until the gallery script runs), then
+// returns every anchor's resolved absolute href via DOM. Avoids the
+// regex-on-raw-HTML approach which misses SPA-injected links.
+async Task<List<string>> LoadStartPageLinksAsync(string url)
 {
     using var playwright = await Playwright.CreateAsync();
 
     var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
     {
         Channel = GetBrowserChannel(),
-        Headless = true,
-        IgnoreDefaultArgs = new[] { "--enable-automation" },
-        Args = new[] { "--disable-blink-features=AutomationControlled" }
+        Headless = true
     });
 
     var context = await browser.NewContextAsync(new BrowserNewContextOptions
     {
         UserAgent = GetUserAgent(),
-        ViewportSize = new ViewportSize { Width = 1920, Height = 1080 }
+        ViewportSize = new ViewportSize { Width = 1920, Height = 1080 },
+        Locale = "en-US",
+        ExtraHTTPHeaders = GetExtraHttpHeaders()
     });
-
-    await context.AddInitScriptAsync(@"() => {
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => undefined
-        });
-    }");
 
     var page = await context.NewPageAsync();
 
@@ -509,9 +681,64 @@ async Task<string> DownloadHtmlContentAsync(string url)
     await page.WaitForSelectorAsync("body", new PageWaitForSelectorOptions { Timeout = 10000 });
     await page.WaitForTimeoutAsync(2000);
 
-    string content = await page.ContentAsync();
+    // Scroll top → bottom in steps so any IntersectionObserver-driven gallery
+    // gets a chance to populate. Then back to the top so a second pass can see
+    // anchors that were only inserted on viewport entry.
+    await page.EvaluateAsync(@"
+        async () => {
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const step = Math.max(400, Math.floor(window.innerHeight * 0.9));
+            const total = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+            for (let y = 0; y < total; y += step) {
+                window.scrollTo(0, y);
+                await sleep(200);
+            }
+            window.scrollTo(0, 0);
+            await sleep(400);
+        }
+    ");
+
+    // Best-effort wait specifically for content-style anchors. If the page
+    // remains a hydrating shell with only chrome links, this will time out
+    // and we'll fall through to whatever the DOM has.
+    try
+    {
+        await page.WaitForSelectorAsync(
+            "a[href*='/media/'], a[href*='/photo/'], a[href*='/news/'], a[href*='/article'], main article a",
+            new PageWaitForSelectorOptions { Timeout = 15000, State = WaitForSelectorState.Attached });
+    }
+    catch (TimeoutException) { /* fall through with whatever loaded */ }
+
+    // Detect common throttle / soft-error pages so the user sees *why* they
+    // got zero links instead of a silent empty-list. Cheap probe: read title +
+    // a snippet of body text and compare to known patterns.
+    var probeJson = await page.EvaluateAsync<string>(@"
+        () => JSON.stringify({
+            title: document.title || '',
+            anchorCount: document.querySelectorAll('a[href]').length,
+            bodySnippet: (document.body && document.body.innerText)
+                ? document.body.innerText.slice(0, 200) : ''
+        })
+    ");
+    var probeLower = probeJson.ToLowerInvariant();
+    if (probeLower.Contains("too many requests") ||
+        probeLower.Contains("rate limit") ||
+        probeLower.Contains("access denied") ||
+        probeLower.Contains("are you a robot") ||
+        probeLower.Contains("just a moment") ||
+        probeLower.Contains("captcha"))
+    {
+        logger.LogWarning("Start page looks throttled/blocked: {Probe}", probeJson);
+    }
+
+    var links = await page.EvaluateAsync<string[]>(@"
+        () => Array.from(document.querySelectorAll('a[href]'))
+            .map(a => a.href)
+            .filter(h => h && (h.startsWith('http://') || h.startsWith('https://')))
+    ");
+
     await browser.CloseAsync();
-    return content;
+    return links.Distinct().ToList();
 }
 
 
@@ -664,7 +891,7 @@ float MeasureWrappedTextHeight(string text, SKFont font, float maxWidth)
 /// General function to handle text drawing on images using SkiaSharp.
 /// </summary>
 void DrawTextOnImage(SKCanvas canvas, SKBitmap bitmap, string? text,
-                     string fontName, List<SKColor> brandColors, bool isHeader, int panelOpacity)
+                     string fontName, List<SKColor> brandColors, bool isHeader, int panelOpacity, double fontScale)
 {
     if (string.IsNullOrWhiteSpace(text)) return;
 
@@ -685,10 +912,11 @@ void DrawTextOnImage(SKCanvas canvas, SKBitmap bitmap, string? text,
         : CalculateAverageColor(bitmap, startPercent, endPercent);
     SKColor textColor = FindBestTextColor(colorBase, brandColors);
 
-    // Find the largest font size that still fits the box
-    int initialSize = isHeader ? 18 : 13;
+    // Find the largest font size that still fits the box.
+    float scale = Math.Clamp((float)fontScale, 0.5f, 3.0f);
+    int initialSize = Math.Max(8, (int)Math.Round((isHeader ? 18 : 13) * scale));
     int bestSize = initialSize;
-    const int maxSize = 72;
+    int maxSize = Math.Max(initialSize, (int)Math.Round(72 * scale));
     var typeface = SKTypeface.FromFamilyName(fontName) ?? SKTypeface.Default;
 
     for (int size = initialSize; size <= maxSize; size++)
