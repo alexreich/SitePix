@@ -10,8 +10,8 @@ Pulls large photos from WordPress-style news blogs and drops them into a
 folder your OS screen saver (or desktop slideshow) can point at. Runs on
 **Windows, macOS, and Linux**.
 
-Originally built to gather news imagery from kadampa.org — now
-configurable via JSON profiles so the same engine can feed off any
+Built to gather news imagery from any WordPress or blog with an identifiable pattern
+and configurable via JSON profiles so the same engine can feed off any
 WordPress site with dated permalinks and standard `<article>` /
 OpenGraph conventions.
 
