@@ -502,7 +502,14 @@ jobs:
             echo "::warning::komac binary not found in archive — submit manifests manually."; exit 0
           fi
           chmod +x "$KOMAC_BIN"
-          "$KOMAC_BIN" update AlexReich.SitePix --version "$VERSION" --urls "$INSTALLER_URL" --submit --token "$WINGET_TOKEN"
+          # `komac update` requires the package to already exist in
+          # microsoft/winget-pkgs. For the first-ever submission of a
+          # package, fall back to `komac new`. Subsequent versions will
+          # land on `update` with no fallback needed.
+          if ! "$KOMAC_BIN" update AlexReich.SitePix --version "$VERSION" --urls "$INSTALLER_URL" --submit --token "$WINGET_TOKEN"; then
+            echo "::notice::komac update failed (likely first-ever submission); falling back to komac new"
+            "$KOMAC_BIN" new AlexReich.SitePix --version "$VERSION" --urls "$INSTALLER_URL" --submit --token "$WINGET_TOKEN"
+          fi
 
       - name: Push Homebrew formula to tap
         if: env.HOMEBREW_TAP_TOKEN != '' && env.HOMEBREW_TAP_REPO != ''
