@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+.claude/settings.json
+
+# SitePix: validation harness output and any local secret-bearing config.
+# Never commit API keys — the supported pattern is Source:ApiKeyEnv pointing
+# at an environment variable, or a *.local.json profile excluded here.
+.verify/
+*.local.json
+*.secret.json

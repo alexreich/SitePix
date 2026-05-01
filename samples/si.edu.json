@@ -11,9 +11,13 @@
   "Source": {
     "Provider": "smithsonian",
 
-    // EDAN solr-style query. The default already filters to CC0 imagery; bias
-    // by adding terms like "AND topic:Botany" or "AND unit_code:NMNHANTHRO".
-    "Query": "online_media_type:Images AND online_media_rights:CC0",
+    // EDAN solr-style query. Leave empty to use the built-in default:
+    // online_media_type:"Images" AND metadata_usage:CC0 (filtered to art-
+    // collection units like CHNDM, FSG, NPG, SAAM, NMAH, NMAfA — these
+    // reliably ship the descriptive media block that the natural-history
+    // datasets often omit). Override with e.g. "topic:Botany" or
+    // "unit_code:NMNHANTHRO" if you want a different slice.
+    "Query": "",
 
     // Either inline or via env var. Leave both blank to fall back to DEMO_KEY.
     "ApiKey": "",

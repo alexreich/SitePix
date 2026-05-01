@@ -2,7 +2,10 @@
   "StartPage": "https://fstoppers.com/potd",
 
   "Policies": {
-    "LinkDepth": 6,
+    // /potd serves multiple renditions per photo and several fall below
+    // MinWidthPx; we pull a generous batch so the post-filter yield stays
+    // useful (~10 images per run).
+    "LinkDepth": 12,
     "RetentionDays": 7
   },
 

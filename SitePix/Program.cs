@@ -163,8 +163,12 @@ urlLogger.Cleanup(30);
 
 // Per-image work shared by both modes (HTML scrape + JSON API). Closes over
 // configuration / logger / paint settings; called once per "page" or "API
-// item" with the image set + the title/subtitle to overlay.
-void ProcessImageBatch(IEnumerable<string> imageUrls, string title, string? overlaySubtitle)
+// item" with the image set + the title/subtitle to overlay. itemIdHint is
+// used by API mode to disambiguate filenames — many catalog APIs serve
+// images via opaque endpoints (Smithsonian's `/ids/download?id=...`, LoC
+// IIIF's `/full/.../default.jpg`) where Path.GetFileName collapses every
+// download to the same name.
+void ProcessImageBatch(IEnumerable<string> imageUrls, string title, string? overlaySubtitle, string? itemIdHint = null)
 {
     Parallel.ForEach(imageUrls, imageUrl =>
     {
@@ -178,7 +182,34 @@ void ProcessImageBatch(IEnumerable<string> imageUrls, string title, string? over
             try { urlPathOnly = new Uri(imageUrl).LocalPath; }
             catch { urlPathOnly = imageUrl.Split('?')[0]; }
             string fileName = Path.GetFileName(urlPathOnly);
-            if (string.IsNullOrWhiteSpace(fileName)) return;
+
+            // No usable extension on the path? Try the `id=` query param —
+            // Smithsonian's IDS URLs put the original filename there.
+            if (string.IsNullOrWhiteSpace(fileName) || string.IsNullOrEmpty(Path.GetExtension(fileName)))
+            {
+                try
+                {
+                    var uri = new Uri(imageUrl);
+                    foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        int eq = pair.IndexOf('=');
+                        if (eq < 0) continue;
+                        if (string.Equals(pair.Substring(0, eq), "id", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string val = Uri.UnescapeDataString(pair.Substring(eq + 1));
+                            string candidate = Path.GetFileName(val);
+                            if (!string.IsNullOrWhiteSpace(candidate)) fileName = candidate;
+                            break;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Last resort: assume JPEG. Without a known image extension the
+            // retention sweep at the end of the run deletes the file.
+            if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
+                fileName = (string.IsNullOrWhiteSpace(fileName) ? "image" : fileName) + ".jpg";
 
             DateTime futureDate = new DateTime(9999, 12, 31);
             DateTime publishedDate = DateTime.UtcNow;
@@ -186,7 +217,20 @@ void ProcessImageBatch(IEnumerable<string> imageUrls, string title, string? over
             long reverseOrder = dateDifference.Days;
 
             string identifier = reverseOrder.ToString("0000000");
-            fileName = identifier + "_" + fileName;
+
+            // Inject the item ID so two items downloaded the same day with the
+            // same URL filename (LoC IIIF `default.jpg`, Smithsonian
+            // `download.jpg`) don't clobber each other.
+            string idPart = "";
+            if (!string.IsNullOrWhiteSpace(itemIdHint))
+            {
+                var invalid = Path.GetInvalidFileNameChars();
+                var safe = new string(itemIdHint.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+                if (safe.Length > 60) safe = safe.Substring(0, 60);
+                idPart = safe + "_";
+            }
+
+            fileName = identifier + "_" + idPart + fileName;
 
             string savePath = Path.Combine(baseDirectory, fileName);
 
@@ -318,7 +362,7 @@ if (apiSource != null)
             continue;
         }
 
-        ProcessImageBatch(filtered, CleanText(item.Title), item.Subtitle);
+        ProcessImageBatch(filtered, CleanText(item.Title), item.Subtitle, item.Id);
         processed++;
     }
 
