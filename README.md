@@ -76,8 +76,9 @@ bundled Chromium (installed once via `playwright install chromium`).
 dotnet publish SitePix/SitePix.csproj -c Release -r osx-arm64 --self-contained \
   -p:PublishSingleFile=true -o dist/macos
 cd SitePix && playwright install chromium
-./dist/macos/SitePix                              # uses bundled appsettings.json (kadampa)
-./dist/macos/SitePix samples/petapixel.com.json   # or any other profile
+./dist/macos/SitePix samples/petapixel.com.json   # photography news from petapixel.com
+./dist/macos/SitePix                              # uses bundled appsettings.json
+# Pass any other profile from samples/ — see the table below for the full list.
 ```
 
 Use `osx-x64` on Intel Macs, `win-x64` on Windows, `linux-x64` / `linux-arm64`
@@ -95,8 +96,9 @@ On startup SitePix reads a JSON config. Pick one:
 ### Profile schema
 
 ```jsonc
+// Example: samples/petapixel.com.json — see samples/ for five other ready-to-use profiles.
 {
-  "StartPage": "https://kadampa.org/news",
+  "StartPage": "https://petapixel.com/",
 
   "Policies": {
     "LinkDepth": 7,          // max articles per run
@@ -283,3 +285,7 @@ respect each site's terms of service and robots directives.
 The project started life as KadampaScreenSaver. See [`XPLATFORM.md`](XPLATFORM.md)
 for the cross-platform migration notes (System.Drawing → SkiaSharp,
 dynamic Playwright channel, per-OS scheduling).
+
+---
+
+[:heart: Sponsor](https://github.com/sponsors/alexreich)
