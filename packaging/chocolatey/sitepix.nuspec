@@ -8,12 +8,12 @@
     <title>SitePix</title>
     <authors>Alex Reich</authors>
     <projectUrl>https://github.com/alexreich/SitePix</projectUrl>
-    <!-- To add a package listing icon, commit a 128x128 PNG to packaging/chocolatey/icon.png and set: -->
-    <!-- <iconUrl>https://raw.githubusercontent.com/alexreich/SitePix/main/packaging/chocolatey/icon.png</iconUrl> -->
+    <iconUrl>https://cdn.jsdelivr.net/gh/alexreich/SitePix@v__VERSION__/packaging/chocolatey/icon.png</iconUrl>
     <copyright>Copyright (c) Alex Reich</copyright>
     <licenseUrl>https://github.com/alexreich/SitePix/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <projectSourceUrl>https://github.com/alexreich/SitePix</projectSourceUrl>
+    <!-- projectSourceUrl intentionally omitted: GitHub repo IS the project home,
+         so projectUrl alone covers it (Chocolatey validator nudges duplicates). -->
     <docsUrl>https://github.com/alexreich/SitePix/blob/main/README.md</docsUrl>
     <bugTrackerUrl>https://github.com/alexreich/SitePix/issues</bugTrackerUrl>
     <tags>sitepix screensaver wallpaper photos scraper wordpress</tags>

@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Chocolatey nuspec: added `iconUrl` (CDN-cached via jsDelivr to a
+  committed `packaging/chocolatey/icon.png`) and removed redundant
+  `projectSourceUrl` (the GitHub repo IS the project home — having
+  identical `projectUrl` and `projectSourceUrl` is what the Choco
+  validator nudges against). Resolves the two Guideline notes from
+  v1.0.0 moderator feedback. Will surface in the next release.
+
 ## [1.0.0] - 2026-04-26
 
 First public release. Forked and renamed from KadampaScreenSaver — same
