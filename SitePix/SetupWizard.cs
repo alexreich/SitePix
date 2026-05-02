@@ -143,6 +143,16 @@ internal static class SetupWizard
         int defaultRetention = node["Policies"]?["RetentionDays"]?.GetValue<int>() ?? 7;
         string sampleSubdir = node["Directories"]?["SubDirectory"]?.GetValue<string>() ?? "SitePix";
 
+        // LinkDepth controls *items processed*, not raw image count. In API
+        // mode each item is one downloadable picture (≈ 1:1 with images);
+        // in HTML mode each item is an article that typically yields a
+        // dozen+ images. Wording must reflect that or it misleads.
+        bool isApiMode = node["Source"]?["Provider"] is not null;
+        string linkDepthNoun = isApiMode ? "items" : "pages";
+        string linkDepthHint = isApiMode
+            ? "(each item ≈ 1 image)"
+            : "(each page typically yields several images)";
+
         // ─── 3. Save location ────────────────────────────────────────────────
         Console.WriteLine();
         string picsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
@@ -161,9 +171,9 @@ internal static class SetupWizard
             }
         }
 
-        // ─── 4. Images per run ───────────────────────────────────────────────
+        // ─── 4. Items per run ────────────────────────────────────────────────
         Console.WriteLine();
-        Console.Write($"How many images per run? [{defaultDepth}]: ");
+        Console.Write($"How many {linkDepthNoun} per run {linkDepthHint}? [{defaultDepth}]: ");
         string depthRaw = (Console.ReadLine() ?? "").Trim();
         int linkDepth = defaultDepth;
         if (!string.IsNullOrEmpty(depthRaw)
@@ -223,9 +233,12 @@ internal static class SetupWizard
 
         Console.WriteLine();
         Console.WriteLine("─── Setup complete ───");
+        // Capitalize "items" / "articles" for the summary label so it matches
+        // the rest of the indented block.
+        string linkDepthLabel = char.ToUpperInvariant(linkDepthNoun[0]) + linkDepthNoun.Substring(1) + " per run:";
         Console.WriteLine($"  Source:                {chosen.Title}");
         Console.WriteLine($"  Save folder:           {imgDir}");
-        Console.WriteLine($"  Images per run:        {linkDepth}");
+        Console.WriteLine($"  {linkDepthLabel,-22} {linkDepth}");
         Console.WriteLine($"  Retention:             {retention} day(s)");
         Console.WriteLine($"  Text overlay:          {(wantOverlay ? "on (title + today's date)" : "off")}");
         Console.WriteLine($"  Daily schedule:        {(wantSchedule ? scheduleTime : "off")}");

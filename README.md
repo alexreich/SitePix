@@ -104,7 +104,10 @@ wizard asks seven short questions:
 2. **API key** — only for the three sources that need one (Smithsonian,
    Flickr Commons, NYPL); the prompt links to the signup page.
 3. **Save folder** — your OS Pictures folder by default, or a custom path.
-4. **Images per run** — how many to download each time.
+4. **Items per run** — `LinkDepth`. In API mode each item is one
+   downloadable picture (≈ 1:1 with images). In HTML mode each item is
+   an article that typically yields a dozen+ images, so a small number
+   (5–7) goes a long way.
 5. **Retention days** — older files are pruned automatically.
 6. **Text overlay** — burn the image title + today's date into each photo.
 7. **Daily schedule** — register a Task Scheduler / launchd / cron job.
