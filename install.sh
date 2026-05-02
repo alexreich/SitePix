@@ -5,7 +5,7 @@
 #   curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/install.sh | sh
 #
 # Options:
-#   VERSION=1.0.0   install a specific version instead of latest
+#   VERSION=1.0.1   install a specific version instead of latest
 #   PREFIX=/opt/x   install location (default: ~/.local)
 #   NO_SCHEDULE=1   skip launching sitepix-install-schedule after install
 #

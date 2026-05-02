@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-01
+
+The first publicly-announced release. v1.0.0 was a soft launch — the
+binaries were uploaded and submitted to package managers but never
+announced anywhere. v1.0.1 rolls in the launch-readiness work and
+ships as the version users actually see.
+
+> Strict semver would call this minor (1.0.0 → 1.1.0) because of the
+> new wizard, API sources, and slideshow configurator. We're using
+> 1.0.1 because v1.0.0 had no public audience to honor a "patch-only"
+> contract for. Future feature work resumes proper minor bumps.
+
 ### Added
 - **First-run interactive setup wizard** (`SitePix/SetupWizard.cs`).
   Asks 7 short questions: source, API key (if needed), save folder,
@@ -136,5 +148,6 @@ rejected for v1.0.0:
 Release assets are unmetered; the win from these cuts is end-user
 download size only, and only the trim option moves the needle there.
 
-[Unreleased]: https://github.com/alexreich/SitePix/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/alexreich/SitePix/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/alexreich/SitePix/releases/tag/v1.0.1
 [1.0.0]: https://github.com/alexreich/SitePix/releases/tag/v1.0.0

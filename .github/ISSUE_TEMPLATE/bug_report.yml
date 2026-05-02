@@ -13,7 +13,7 @@ body:
     attributes:
       label: SitePix version
       description: From the binary filename, the GitHub Release page, or `sitepix --version` if available.
-      placeholder: 1.0.0
+      placeholder: 1.0.1
     validations:
       required: true
 

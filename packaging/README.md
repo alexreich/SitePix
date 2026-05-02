@@ -87,10 +87,10 @@ Users who want true `apt install sitepix` have two paths:
 dotnet publish SitePix/SitePix.csproj `
   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 
-iscc.exe /DAppVersion=1.0.0 `
+iscc.exe /DAppVersion=1.0.1 `
   /DPublishDir="$((Resolve-Path 'SitePix/bin/Release/net10.0/win-x64/publish').Path)" `
   packaging\inno\SitePix.iss
-# Output: packaging\inno\Output\SitePix-Setup-1.0.0.exe
+# Output: packaging\inno\Output\SitePix-Setup-1.0.1.exe
 ```
 
 Requires [Inno Setup 6](https://jrsoftware.org/isinfo.php).
@@ -102,7 +102,7 @@ dotnet publish SitePix/SitePix.csproj \
   -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/linux-x64
 
 # Tarball
-tar -C publish/linux-x64 -czf SitePix-1.0.0-linux-x64.tar.gz .
+tar -C publish/linux-x64 -czf SitePix-1.0.1-linux-x64.tar.gz .
 
 # .deb (requires fpm: `sudo gem install fpm`)
 ROOT=build/deb-root
@@ -111,7 +111,7 @@ mkdir -p "$ROOT/opt/sitepix" "$ROOT/usr/bin"
 cp -r publish/linux-x64/. "$ROOT/opt/sitepix/"
 ln -sf /opt/sitepix/SitePix "$ROOT/usr/bin/sitepix"
 cp packaging/linux/sitepix-install-schedule "$ROOT/usr/bin/"
-fpm -s dir -t deb -a amd64 -n sitepix -v 1.0.0 \
+fpm -s dir -t deb -a amd64 -n sitepix -v 1.0.1 \
     --after-install packaging/linux/postinst.sh \
     --before-remove packaging/linux/prerm.sh \
     -C "$ROOT" .
@@ -122,7 +122,7 @@ fpm -s dir -t deb -a amd64 -n sitepix -v 1.0.0 \
 ```bash
 dotnet publish SitePix/SitePix.csproj \
   -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/osx-arm64
-tar -C publish/osx-arm64 -czf SitePix-1.0.0-osx-arm64.tar.gz .
+tar -C publish/osx-arm64 -czf SitePix-1.0.1-osx-arm64.tar.gz .
 ```
 
 For a full from-clean-machine bootstrap that installs .NET, Playwright Chromium, and the LaunchAgent, see [`../macos/install.sh`](../macos/install.sh).

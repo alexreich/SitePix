@@ -1,9 +1,9 @@
 ; Inno Setup script for SitePix.
-; Compile with: iscc.exe /DAppVersion=1.0.0 /DPublishDir=..\..\SitePix\bin\Release\net10.0\win-x64\publish SitePix.iss
+; Compile with: iscc.exe /DAppVersion=1.0.1 /DPublishDir=..\..\SitePix\bin\Release\net10.0\win-x64\publish SitePix.iss
 ; Outputs:       packaging\inno\Output\SitePix-Setup-<version>.exe
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.1"
 #endif
 
 #ifndef PublishDir

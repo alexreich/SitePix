@@ -1,6 +1,6 @@
-# SitePix v1.0.0 launch announcement
+# SitePix v1.0.1 launch announcement
 
-Templates for posting once the v1.0.0 retag finishes and the package
+Templates for posting once the v1.0.1 retag finishes and the package
 managers have approved the submissions. Pick one, edit to taste, post.
 
 ---
@@ -61,7 +61,7 @@ JSON profiles)
 
 **Body:**
 
-A small open-source utility I just released as v1.0.0:
+A small open-source utility I just released as v1.0.1:
 github.com/alexreich/SitePix
 
 Written in .NET 10, runs on Windows / macOS / Linux (x64 + arm64).
@@ -108,7 +108,7 @@ github.com/alexreich/SitePix
 
 ## Mastodon / Bluesky / Twitter (≤300 chars)
 
-> Just shipped SitePix v1.0.0 — open-source CLI that mirrors photos
+> Just shipped SitePix v1.0.1 — open-source CLI that mirrors photos
 > from any WordPress news blog (PetaPixel, Atlas Obscura, etc.) into
 > your screen-saver folder daily. Win/Mac/Linux, JSON profiles, all
 > the package managers.
@@ -124,7 +124,7 @@ SkiaSharp + Playwright + multi-OS packaging in one workflow
 
 **Body:**
 
-Open-sourced SitePix v1.0.0 today. It's a small CLI but the .NET
+Open-sourced SitePix v1.0.1 today. It's a small CLI but the .NET
 toolchain pieces might be interesting:
 
 - Single Program.cs targets net10.0, self-contained published for

@@ -418,14 +418,14 @@ verify before installing:
 
 ```bash
 # macOS / Linux
-shasum -a 256 -c SitePix-1.0.0-osx-arm64.tar.gz.sha256
-sha256sum -c    sitepix_1.0.0_amd64.deb.sha256
+shasum -a 256 -c SitePix-1.0.1-osx-arm64.tar.gz.sha256
+sha256sum -c    sitepix_1.0.1_amd64.deb.sha256
 ```
 
 ```powershell
 # Windows
-$expected = (Get-Content SitePix-Setup-1.0.0.exe.sha256 | Select-String -Pattern '^\S+').Matches.Value
-$actual   = (Get-FileHash SitePix-Setup-1.0.0.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content SitePix-Setup-1.0.1.exe.sha256 | Select-String -Pattern '^\S+').Matches.Value
+$actual   = (Get-FileHash SitePix-Setup-1.0.1.exe -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($expected -ne $actual) { throw "Hash mismatch" } else { "OK" }
 ```
 

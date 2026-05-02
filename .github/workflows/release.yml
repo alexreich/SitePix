@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (e.g. 1.0.0). Must match csproj <Version>.'
+        description: 'Version to build (e.g. 1.0.1). Must match csproj <Version>.'
         required: true
         type: string
 
