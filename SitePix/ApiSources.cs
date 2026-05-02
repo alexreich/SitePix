@@ -4,15 +4,14 @@
 // existing PhotoText overlay can render. The HTML-scraping path in Program.cs
 // is unaffected — these only run when Source:Provider is set.
 //
-// Only catalogs that publish items under an explicit CC0 (Creative Commons
-// Zero) waiver are supported here — currently the Met Museum's Open Access
-// program and the Smithsonian's Open Access program (filtered to
-// metadata_usage:CC0). Catalogs whose rights story is "public domain in
-// many cases" / "no known restrictions" / "rights vary per item" (NASA,
-// Library of Congress general search, Flickr Commons, NYPL) were
-// intentionally excluded — under CC0 there is no per-item rights review or
-// attribution requirement, so the resulting downloads (and any overlays
-// applied to them) can be reposted without legal concern.
+// Scope: SitePix is a private-use tool. Downloads land in the user's local
+// Pictures folder for slideshow / screensaver / desktop-background use; the
+// images are never re-published anywhere by SitePix itself. Each source
+// below is appropriate for that private-use context. The per-sample
+// headers in /samples flag any *redistribution* limitations the user
+// should be aware of if they later choose to re-share the downloaded
+// material themselves. Sources that explicitly prohibit automated access
+// in their Terms of Service are not included.
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -49,9 +48,13 @@ public static class ApiSourceFactory
         {
             "metmuseum" or "met" => new MetMuseumSource(config, client, logger),
             "smithsonian" or "si" => new SmithsonianSource(config, client, logger),
+            "loc" or "libraryofcongress" => new LibraryOfCongressSource(config, client, logger),
+            "nasa" or "nasaimages" => new NasaImagesSource(config, client, logger),
+            "flickrcommons" or "flickr" => new FlickrCommonsSource(config, client, logger),
+            "nypl" => new NyplSource(config, client, logger),
             _ => throw new InvalidOperationException(
-                $"Unknown Source:Provider '{provider}'. Supported: metmuseum, smithsonian. " +
-                "Other catalogs were excluded because their items don't ship as explicit CC0.")
+                $"Unknown Source:Provider '{provider}'. Supported: " +
+                "metmuseum, smithsonian, loc, nasa, flickrcommons, nypl.")
         };
     }
 }
@@ -365,6 +368,399 @@ public class SmithsonianSource : IApiSource
             catch (Exception ex)
             {
                 _logger.LogWarning("Smithsonian row parse failed: {Msg}", ex.Message);
+            }
+
+            if (item != null) yield return item;
+        }
+    }
+}
+
+// ─── Library of Congress ─────────────────────────────────────────────────────
+// No key required. /photos/ search returns items where the largest usable
+// JPEG lives at item.service_high / service_medium (image_url[] is just a
+// 150-px thumbnail). Rights vary per item — most pre-1928 photographs are
+// public-domain in the US, but the LoC catalog also includes works whose
+// status is "not evaluated" or actively in copyright. For private viewing
+// any of these are fine; before re-sharing, check each item's rights page.
+public class LibraryOfCongressSource : IApiSource
+{
+    private readonly HttpClient _client;
+    private readonly ILogger _logger;
+    private readonly string _path;
+    private readonly string _query;
+    private readonly int _maxImagesPerItem;
+
+    public LibraryOfCongressSource(IConfiguration config, HttpClient client, ILogger logger)
+    {
+        _client = client;
+        _logger = logger;
+        _path = (config.GetValue<string?>("Source:Path") ?? "photos").Trim('/');
+        _query = config.GetValue<string?>("Source:Query") ?? "";
+        _maxImagesPerItem = Math.Max(1, config.GetValue<int?>("Source:MaxImagesPerItem") ?? 1);
+    }
+
+    public async IAsyncEnumerable<ApiItem> FetchAsync(int desiredCount, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        int count = Math.Clamp(desiredCount * 4, 10, 100);
+        // Random page so consecutive runs sample across the result set.
+        int page = Random.Shared.Next(1, 50);
+        var url = $"https://www.loc.gov/{_path}/?fo=json&c={count}&sp={page}&fa=online-format:image";
+        if (!string.IsNullOrWhiteSpace(_query)) url += "&q=" + Uri.EscapeDataString(_query);
+
+        JsonElement[] results;
+        try
+        {
+            using var stream = await _client.GetStreamAsync(url, ct);
+            using var doc = await JsonDocument.ParseAsync(stream, default, ct);
+            // LoC wraps results: { content: { results: [...] } }. Older
+            // endpoints returned them at the root; accept both shapes.
+            var content = doc.RootElement.GetPropertyOrNull("content");
+            var resultsEl = (content?.GetPropertyOrNull("results"))
+                ?? doc.RootElement.GetPropertyOrNull("results");
+            if (resultsEl is null) yield break;
+            results = resultsEl.Value.EnumerateArrayOrEmpty().Select(e => e.Clone()).ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LoC search failed");
+            yield break;
+        }
+
+        foreach (var r in results)
+        {
+            ApiItem? item = null;
+            try
+            {
+                // image_url[] in /photos/ search results is the gallery
+                // thumbnail (~150 px). Presentation-quality JPEGs live under
+                // item.service_medium / service_high — try those first.
+                var picked = new List<string>();
+                if (r.GetPropertyOrNull("item") is { } itemEl)
+                {
+                    foreach (var key in new[] { "service_high", "service_medium", "service_low" })
+                    {
+                        if (picked.Count >= _maxImagesPerItem) break;
+                        var u = itemEl.GetStringOrNull(key);
+                        if (!string.IsNullOrWhiteSpace(u)) picked.Add(u);
+                    }
+                }
+                if (picked.Count == 0 && r.GetPropertyOrNull("image_url") is { } imageUrls)
+                {
+                    var urls = imageUrls.EnumerateArrayOrEmpty()
+                        .Where(e => e.ValueKind == JsonValueKind.String)
+                        .Select(e => e.GetString()!)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .ToList();
+                    for (int i = urls.Count - 1; i >= 0 && picked.Count < _maxImagesPerItem; i--)
+                        picked.Add(urls[i]);
+                }
+                if (picked.Count == 0) continue;
+
+                string title = r.GetStringOrNull("title") ?? "Untitled";
+
+                string? date = r.GetStringOrNull("date");
+                string? firstSubject = null;
+                if (r.GetPropertyOrNull("subject") is { } s && s.ValueKind == JsonValueKind.Array)
+                {
+                    var sf = s.EnumerateArray().FirstOrDefault();
+                    if (sf.ValueKind == JsonValueKind.String) firstSubject = sf.GetString();
+                }
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(date)) parts.Add(date);
+                if (!string.IsNullOrWhiteSpace(firstSubject)) parts.Add(firstSubject);
+                string? subtitle = parts.Count > 0 ? string.Join(" • ", parts) : null;
+
+                string id = r.GetStringOrNull("id") ?? Guid.NewGuid().ToString("N");
+                string sourceUrl = id.StartsWith("http") ? id : $"https://www.loc.gov/item/{id}";
+
+                item = new ApiItem(id, sourceUrl, picked, title, subtitle);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("LoC row parse failed: {Msg}", ex.Message);
+            }
+
+            if (item != null) yield return item;
+        }
+    }
+}
+
+// ─── NASA Image Library ──────────────────────────────────────────────────────
+// No key required. Each search-response item already lists every rendition
+// under links[] (~orig as rel=canonical, ~large/medium/small as alternate,
+// ~thumb as preview). NASA still photos are generally free of US copyright,
+// with carve-outs for NASA insignia, identifiable people in commercial
+// reuse, and ESA-co-credited Hubble/JWST imagery — fine for private
+// viewing, worth checking per-image before redistribution.
+public class NasaImagesSource : IApiSource
+{
+    private readonly HttpClient _client;
+    private readonly ILogger _logger;
+    private readonly string _query;
+
+    public NasaImagesSource(IConfiguration config, HttpClient client, ILogger logger)
+    {
+        _client = client;
+        _logger = logger;
+        _query = config.GetValue<string?>("Source:Query") ?? "";
+    }
+
+    public async IAsyncEnumerable<ApiItem> FetchAsync(int desiredCount, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        int pageSize = Math.Clamp(desiredCount * 4, 10, 100);
+        int page = Random.Shared.Next(1, 20);
+        var url = $"https://images-api.nasa.gov/search?media_type=image&page={page}&page_size={pageSize}";
+        if (!string.IsNullOrWhiteSpace(_query)) url += "&q=" + Uri.EscapeDataString(_query);
+
+        JsonElement[] items;
+        try
+        {
+            using var stream = await _client.GetStreamAsync(url, ct);
+            using var doc = await JsonDocument.ParseAsync(stream, default, ct);
+            var collection = doc.RootElement.GetPropertyOrNull("collection");
+            if (collection is null) yield break;
+            var itemsEl = collection.Value.GetPropertyOrNull("items");
+            if (itemsEl is null) yield break;
+            items = itemsEl.Value.EnumerateArrayOrEmpty().Select(e => e.Clone()).ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "NASA search failed");
+            yield break;
+        }
+
+        foreach (var it in items)
+        {
+            ApiItem? item = null;
+            string? title = null, description = null, nasaId = null;
+
+            if (it.GetPropertyOrNull("data") is { } d && d.ValueKind == JsonValueKind.Array)
+            {
+                var first = d.EnumerateArray().FirstOrDefault();
+                if (first.ValueKind == JsonValueKind.Object)
+                {
+                    title = first.GetStringOrNull("title");
+                    description = first.GetStringOrNull("description");
+                    nasaId = first.GetStringOrNull("nasa_id");
+                }
+            }
+            if (string.IsNullOrEmpty(nasaId)) continue;
+
+            // Pick the largest rendition straight from the search response.
+            string? best = null;
+            if (it.GetPropertyOrNull("links") is { } linksEl
+                && linksEl.ValueKind == JsonValueKind.Array)
+            {
+                var links = linksEl.EnumerateArray()
+                    .Where(l => l.ValueKind == JsonValueKind.Object)
+                    .Select(l => (
+                        href: l.GetStringOrNull("href"),
+                        rel: l.GetStringOrNull("rel"),
+                        render: l.GetStringOrNull("render")))
+                    .Where(l => !string.IsNullOrWhiteSpace(l.href) && l.render == "image")
+                    .ToList();
+
+                best = links.FirstOrDefault(l => l.href!.Contains("~orig")).href
+                    ?? links.FirstOrDefault(l => l.rel == "canonical").href
+                    ?? links.FirstOrDefault(l => l.href!.Contains("~large")).href
+                    ?? links.FirstOrDefault(l => l.href!.Contains("~medium")).href
+                    ?? links.FirstOrDefault(l => l.rel != "preview" && !l.href!.Contains("~thumb")).href;
+            }
+            if (string.IsNullOrWhiteSpace(best)) continue;
+
+            string sourceUrl = $"https://images.nasa.gov/details/{nasaId}";
+            item = new ApiItem(nasaId!, sourceUrl, new List<string> { best }, title ?? "NASA image", description);
+
+            if (item != null) yield return item;
+        }
+    }
+}
+
+// ─── Flickr Commons ──────────────────────────────────────────────────────────
+// Institutional pool of works the contributing libraries and museums have
+// flagged as "no known copyright restrictions" — note that this is the
+// institution's best-effort statement, weaker than CC0/PD. Requires a free
+// Flickr API key (set Source:ApiKey or env Source:ApiKeyEnv). Fine for
+// private use; check per-photo before redistributing.
+public class FlickrCommonsSource : IApiSource
+{
+    private readonly HttpClient _client;
+    private readonly ILogger _logger;
+    private readonly string _apiKey;
+    private readonly string _query;
+
+    public FlickrCommonsSource(IConfiguration config, HttpClient client, ILogger logger)
+    {
+        _client = client;
+        _logger = logger;
+        _query = config.GetValue<string?>("Source:Query") ?? "";
+        _apiKey = JsonHelpers.ResolveSecret(config, "ApiKey", "ApiKeyEnv") ?? "";
+    }
+
+    public async IAsyncEnumerable<ApiItem> FetchAsync(int desiredCount, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_apiKey))
+        {
+            _logger.LogError("Flickr Commons requires Source:ApiKey or Source:ApiKeyEnv");
+            yield break;
+        }
+
+        int perPage = Math.Clamp(desiredCount * 4, 10, 100);
+        int page = Random.Shared.Next(1, 50);
+        var url = "https://api.flickr.com/services/rest/?method=flickr.photos.search" +
+                  "&is_commons=1" +
+                  $"&api_key={Uri.EscapeDataString(_apiKey)}" +
+                  "&format=json&nojsoncallback=1" +
+                  $"&per_page={perPage}&page={page}" +
+                  "&extras=url_o,url_k,url_h,url_l,description,date_taken,owner_name";
+        if (!string.IsNullOrWhiteSpace(_query))
+            url += "&text=" + Uri.EscapeDataString(_query);
+
+        JsonElement[] photos;
+        try
+        {
+            using var stream = await _client.GetStreamAsync(url, ct);
+            using var doc = await JsonDocument.ParseAsync(stream, default, ct);
+            var photosEl = doc.RootElement.GetPropertyOrNull("photos");
+            if (photosEl is null) yield break;
+            var photoArr = photosEl.Value.GetPropertyOrNull("photo");
+            if (photoArr is null) yield break;
+            photos = photoArr.Value.EnumerateArrayOrEmpty().Select(e => e.Clone()).ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Flickr Commons search failed");
+            yield break;
+        }
+
+        foreach (var p in photos)
+        {
+            ApiItem? item = null;
+            try
+            {
+                // Largest available; url_o (original) → url_k (2048) → url_h (1600) → url_l (1024).
+                string? best = null;
+                foreach (var key in new[] { "url_o", "url_k", "url_h", "url_l" })
+                {
+                    var v = p.GetStringOrNull(key);
+                    if (!string.IsNullOrWhiteSpace(v)) { best = v; break; }
+                }
+                if (best == null) continue;
+
+                string id = p.GetStringOrNull("id") ?? "";
+                string title = p.GetStringOrNull("title") ?? "Untitled";
+
+                string? description = null;
+                if (p.GetPropertyOrNull("description") is { } de)
+                    description = de.GetStringOrNull("_content");
+
+                string? owner = p.GetStringOrNull("owner_name");
+                string? date = p.GetStringOrNull("datetaken");
+                var subParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(owner)) subParts.Add(owner);
+                if (!string.IsNullOrWhiteSpace(date)) subParts.Add(date);
+                string? subtitle = subParts.Count > 0
+                    ? string.Join(" • ", subParts)
+                    : (string.IsNullOrWhiteSpace(description) ? null : description);
+
+                string ownerId = p.GetStringOrNull("owner") ?? "";
+                string sourceUrl = !string.IsNullOrEmpty(ownerId) && !string.IsNullOrEmpty(id)
+                    ? $"https://www.flickr.com/photos/{ownerId}/{id}"
+                    : $"https://www.flickr.com/photo.gne?id={id}";
+
+                item = new ApiItem(id, sourceUrl, new List<string> { best }, title, subtitle);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Flickr photo parse failed: {Msg}", ex.Message);
+            }
+
+            if (item != null) yield return item;
+        }
+    }
+}
+
+// ─── NYPL Digital Collections ────────────────────────────────────────────────
+// Requires a free API token from https://api.repo.nypl.org/. Best-effort
+// shape: search → captures, fetch the largest IIIF-served JPG per imageID.
+// NYPL marks items as public-domain via the publicDomainOnly=true filter;
+// that's an institutional determination — solid for private use; double-
+// check the rights statement on the item page before redistributing.
+public class NyplSource : IApiSource
+{
+    private readonly HttpClient _client;
+    private readonly ILogger _logger;
+    private readonly string _query;
+    private readonly string _token;
+
+    public NyplSource(IConfiguration config, HttpClient client, ILogger logger)
+    {
+        _client = client;
+        _logger = logger;
+        _query = config.GetValue<string?>("Source:Query") ?? "*";
+        _token = JsonHelpers.ResolveSecret(config, "ApiKey", "ApiKeyEnv") ?? "";
+    }
+
+    public async IAsyncEnumerable<ApiItem> FetchAsync(int desiredCount, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_token))
+        {
+            _logger.LogError("NYPL requires Source:ApiKey (token from https://api.repo.nypl.org/)");
+            yield break;
+        }
+
+        int perPage = Math.Clamp(desiredCount * 4, 10, 100);
+        int page = Random.Shared.Next(1, 20);
+        var url = "https://api.repo.nypl.org/api/v2/items/search.json" +
+                  $"?q={Uri.EscapeDataString(_query)}&per_page={perPage}&page={page}&publicDomainOnly=true";
+
+        JsonElement[] capturesArr;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.TryAddWithoutValidation("Authorization", $"Token token=\"{_token}\"");
+            using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            resp.EnsureSuccessStatusCode();
+            using var stream = await resp.Content.ReadAsStreamAsync(ct);
+            using var doc = await JsonDocument.ParseAsync(stream, default, ct);
+            JsonElement root = doc.RootElement;
+            if (root.GetPropertyOrNull("nyplAPI") is { } api
+                && api.GetPropertyOrNull("response") is { } response
+                && response.GetPropertyOrNull("capture") is { } capture)
+            {
+                capturesArr = capture.EnumerateArrayOrEmpty().Select(e => e.Clone()).ToArray();
+            }
+            else yield break;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "NYPL search failed");
+            yield break;
+        }
+
+        foreach (var cap in capturesArr)
+        {
+            ApiItem? item = null;
+            try
+            {
+                string? imageId = cap.GetStringOrNull("imageID");
+                if (string.IsNullOrEmpty(imageId)) continue;
+
+                // `t=w` is the largest non-IIIF size; `t=g` is mid-size.
+                string imageUrl = $"https://images.nypl.org/index.php?id={imageId}&t=w";
+
+                string id = cap.GetStringOrNull("uuid") ?? imageId;
+                string title = cap.GetStringOrNull("title") ?? "Untitled";
+                string? subtitle = cap.GetStringOrNull("typeOfResource");
+
+                string sourceUrl = cap.GetStringOrNull("itemLink")
+                    ?? $"https://digitalcollections.nypl.org/items/{id}";
+
+                item = new ApiItem(id, sourceUrl, new List<string> { imageUrl }, title, subtitle);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("NYPL capture parse failed: {Msg}", ex.Message);
             }
 
             if (item != null) yield return item;

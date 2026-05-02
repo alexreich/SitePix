@@ -1,32 +1,28 @@
 {
   "Source": {
-    "Provider": "smithsonian",
-    "Query": "",
+    "Provider": "nypl",
     "ApiKey": "",
-    "ApiKeyEnv": "SMITHSONIAN_API_KEY",
-    "MaxImagesPerItem": 1
+    "ApiKeyEnv": "NYPL_API_TOKEN",
+    "Query": "*"
   },
-  "StartPage": "https://www.si.edu/openaccess",
+  "StartPage": "https://digitalcollections.nypl.org/",
   "Policies": {
     "LinkDepth": 20,
     "RetentionDays": 7
   },
   "Scraper": {
     "MinWidthPx": 1024,
-    "ImageUrlExcludes": [
-      "_thumb",
-      "/thumb/"
-    ],
+    "ImageUrlExcludes": [],
     "RequestDelayMs": 500
   },
   "Task Scheduler": {
     "StartTime": "",
-    "Id": "SitePix-Smithsonian"
+    "Id": "SitePix-NYPL"
   },
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
-    "SubDirectory": "Smithsonian",
+    "SubDirectory": "NYPL",
     "PhotoText": true
   },
   "PhotoText": {
@@ -39,10 +35,10 @@
     "ImageFileName": false,
     "PanelOpacity": 210,
     "BrandColors": [
-      "#002D72",
-      "#FFC72C",
+      "#CE0E2D",
+      "#1F1F1F",
       "#FFFFFF",
-      "#7A0019"
+      "#7E7E7E"
     ]
   },
   "LogLevel": {

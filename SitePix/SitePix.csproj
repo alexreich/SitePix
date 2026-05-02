@@ -53,9 +53,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <!-- No default appsettings.json ships with the binary on purpose: a
+         fresh install has nothing at <BaseDirectory>/appsettings.json so the
+         setup wizard in SetupWizard.cs fires on first launch and writes the
+         user's chosen config to <LocalAppData>/SitePix/appsettings.json.
+         Re-run the wizard any time by passing the setup flag. -->
+
     <!-- Ship the bundled sample profiles next to the binary so users can
          pass them on the command line without hunting for the repo. -->
     <None Include="..\samples\*.json" CopyToOutputDirectory="PreserveNewest" Link="samples\%(Filename)%(Extension)" />

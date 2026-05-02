@@ -1,11 +1,9 @@
 {
   "StartPage": "https://www.thephoblographer.com/",
-
   "Policies": {
     "LinkDepth": 6,
     "RetentionDays": 7
   },
-
   "Scraper": {
     "UrlPattern": "/{Year}/\\d{2}/\\d{2}/",
     "MinWidthPx": 1200,
@@ -27,19 +25,16 @@
       "body"
     ]
   },
-
   "Task Scheduler": {
     "StartTime": "",
     "Id": "SitePix-Phoblographer"
   },
-
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
     "SubDirectory": "ThePhoblographer",
     "PhotoText": true
   },
-
   "PhotoText": {
     "Font": "Helvetica Neue",
     "TitleFontScale": 1.0,
@@ -48,8 +43,6 @@
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
-    // Overlay mode for readability:
-    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
     "PanelOpacity": 210,
     "BrandColors": [
       "#1A1A1A",
@@ -58,7 +51,6 @@
       "#3498DB"
     ]
   },
-
   "LogLevel": {
     "Default": "Information",
     "Microsoft": "Warning",

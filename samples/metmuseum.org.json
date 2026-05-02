@@ -1,49 +1,30 @@
 {
-  // Met Museum Open Access. ~half a million CC0 works. No API key required.
-  // Catalog: https://www.metmuseum.org/art/collection
-  // API docs: https://metmuseum.github.io/
-
   "Source": {
     "Provider": "metmuseum",
-
-    // Empty Query = pull from the whole open-access pool. Set to e.g.
-    // "landscape", "Japan", "Egypt", "drawing" to bias the selection.
     "Query": "",
-
-    // Curated highlights only (~2,000 objects). Off by default.
     "OnlyHighlights": false,
-
-    // Bump above 1 to also pull additionalImages (alternate views,
-    // conservation shots) per object.
     "MaxImagesPerItem": 1
   },
-
   "StartPage": "https://www.metmuseum.org/art/collection",
-
   "Policies": {
-    // In API mode, LinkDepth = items downloaded per run.
     "LinkDepth": 20,
     "RetentionDays": 7
   },
-
   "Scraper": {
     "MinWidthPx": 1024,
     "ImageUrlExcludes": [],
     "RequestDelayMs": 500
   },
-
   "Task Scheduler": {
     "StartTime": "",
     "Id": "SitePix-Met"
   },
-
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
     "SubDirectory": "MetMuseum",
     "PhotoText": true
   },
-
   "PhotoText": {
     "Font": "Helvetica Neue",
     "TitleFontScale": 1.0,
@@ -60,7 +41,6 @@
       "#A07C44"
     ]
   },
-
   "LogLevel": {
     "Default": "Information",
     "Microsoft": "Warning",

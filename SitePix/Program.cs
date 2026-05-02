@@ -11,19 +11,34 @@ using SitePix;
 using SitePix.Sources;
 using SkiaSharp;
 
-// First positional CLI arg selects a config profile file — e.g.
-// `sitepix samples/petapixel.com.json`. Otherwise fall back to
-// appsettings.json (or sitepix.json for older/custom installs) next to the
-// binary. We resolve relative to the binary's own directory, NOT the current
-// working directory, because Task Scheduler / launchd / cron all run with a
-// CWD that's nowhere near the install path.
+// Where the setup wizard saves its config. Always user-writable (LocalAppData
+// works on Windows / macOS / Linux), so we never fight Program Files perms.
+string UserConfigPath() => Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "SitePix", "appsettings.json");
+
+// Config resolution — first match wins:
+//   `--setup` / `-s`         → run wizard, write to user config dir, use it
+//   <positional CLI arg>     → use that file (absolute, CWD-relative, or
+//                              binary-relative — preserves the dev workflow
+//                              of `sitepix samples/foo.json`)
+//   <BaseDirectory>/appsettings.json
+//   <BaseDirectory>/sitepix.json    (legacy filename)
+//   <LocalAppData>/SitePix/appsettings.json   (where the wizard writes)
+//   nothing → run the wizard if interactive, else exit with an error
+//
+// We resolve relative to the binary's own directory, NOT the current working
+// directory, because Task Scheduler / launchd / cron all run with a CWD
+// that's nowhere near the install path.
 string configPath;
-if (args.Length > 0)
+bool forceSetup = args.Length > 0 && (args[0] == "--setup" || args[0] == "-s");
+
+if (forceSetup)
 {
-    // Try the arg as-is (absolute or CWD-relative — preserves the dev workflow
-    // of `sitepix samples/foo.json` from the repo root). Fall back to the
-    // binary's own directory so `sitepix samples/foo.json` also works after
-    // installation when CWD is somewhere unrelated.
+    configPath = SetupWizard.Run(UserConfigPath());
+}
+else if (args.Length > 0)
+{
     if (File.Exists(args[0]))
         configPath = args[0];
     else if (File.Exists(Path.Combine(AppContext.BaseDirectory, args[0])))
@@ -39,18 +54,21 @@ else
 {
     string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
     string sitePixPath = Path.Combine(AppContext.BaseDirectory, "sitepix.json");
+    string userPath = UserConfigPath();
 
     if (File.Exists(appSettingsPath))
-    {
         configPath = appSettingsPath;
-    }
     else if (File.Exists(sitePixPath))
-    {
         configPath = sitePixPath;
-    }
+    else if (File.Exists(userPath))
+        configPath = userPath;
+    else if (!Console.IsInputRedirected)
+        configPath = SetupWizard.Run(userPath);
     else
     {
-        Console.Error.WriteLine($"No config file found. Expected either '{appSettingsPath}' or '{sitePixPath}'.");
+        Console.Error.WriteLine(
+            $"No config file found. Searched:\n  {appSettingsPath}\n  {sitePixPath}\n  {userPath}\n" +
+            "Run interactively to use the setup wizard, or pass a config path on the command line.");
         Environment.Exit(1);
         return;
     }
@@ -469,6 +487,14 @@ foreach (string file in files)
 
 // Cleanup again
 urlLogger.Cleanup(30);
+
+// Final hint for interactive runs only — keeps scheduled / piped runs quiet.
+if (!Console.IsInputRedirected)
+{
+    Console.WriteLine();
+    Console.WriteLine($"Done. Images saved to: {baseDirectory}");
+    Console.WriteLine("Run with --setup to reconfigure (source, save folder, schedule, overlay, etc.).");
+}
 
 
 // ─── Helper methods ──────────────────────────────────────────────────────────

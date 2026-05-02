@@ -76,10 +76,10 @@ bundled Chromium (installed once via `playwright install chromium`).
 dotnet publish SitePix/SitePix.csproj -c Release -r osx-arm64 --self-contained \
   -p:PublishSingleFile=true -o dist/macos
 cd SitePix && playwright install chromium
-./dist/macos/SitePix                              # bundled default: petapixel.com
-./dist/macos/SitePix samples/kadampa.org.json     # kadampa.org profile
-./dist/macos/SitePix samples/atlasobscura.com.json
-# Six profiles ship under samples/ — see the table below for the full list.
+./dist/macos/SitePix                              # first run → setup wizard
+./dist/macos/SitePix --setup                      # re-run wizard later
+./dist/macos/SitePix samples/kadampa.org.json     # bypass wizard, use a specific sample
+# 10 ready-to-use samples ship under samples/ — see "Bundled samples" below.
 ```
 
 Use `osx-x64` on Intel Macs, `win-x64` on Windows, `linux-x64` / `linux-arm64`
@@ -89,150 +89,198 @@ on Linux.
 
 ## Configuration
 
-On startup SitePix reads a JSON config. Pick one:
+### First-run setup wizard
 
-1. Positional CLI arg — `sitepix path/to/profile.json`
-2. `appsettings.json` next to the binary (default — ships tuned for petapixel.com)
-3. If `appsettings.json` is missing, SitePix falls back to `sitepix.json` next to the binary (for older/custom installs)
+SitePix is private-use software — downloads land in your Pictures folder
+for slideshow / screen-saver / wallpaper use; nothing is re-published
+anywhere unless you do that yourself.
 
-### Coming for kadampa.org?
+The first time you run `sitepix` on a fresh install, an interactive
+wizard asks seven short questions:
 
-The Kadampa profile ships with every release — both bundled next to
-the binary and as a standalone download URL. The simplest path on
-any install method:
+1. **Source** — Met Museum (default), Smithsonian, NASA, Library of
+   Congress, Flickr Commons, NYPL, plus four HTML-scrape profiles
+   (kadampa, petapixel, atlasobscura, thephoblographer).
+2. **API key** — only for the three sources that need one (Smithsonian,
+   Flickr Commons, NYPL); the prompt links to the signup page.
+3. **Save folder** — your OS Pictures folder by default, or a custom path.
+4. **Images per run** — how many to download each time.
+5. **Retention days** — older files are pruned automatically.
+6. **Text overlay** — burn the image title + today's date into each photo.
+7. **Daily schedule** — register a Task Scheduler / launchd / cron job.
+
+Re-run the wizard at any time with:
 
 ```bash
-# macOS / Linux — fetch and use in one shot:
-curl -fsSL https://github.com/alexreich/SitePix/releases/latest/download/kadampa.org.json -o ~/.sitepix.json
-sitepix ~/.sitepix.json
+sitepix --setup
 ```
 
-```powershell
-# Windows:
-Invoke-WebRequest https://github.com/alexreich/SitePix/releases/latest/download/kadampa.org.json -OutFile $env:USERPROFILE\sitepix.json
-sitepix $env:USERPROFILE\sitepix.json
-```
+The wizard writes a config file to your local app-data folder:
 
-To make it the default so plain `sitepix` uses it on every run, copy
-the same JSON over the bundled `appsettings.json` — see
-[Switching profiles](#switching-profiles) below for where that file
-lives on each install method.
-
-The Kadampa profile pulls images to `~/Pictures/Kadampa`, applies
-the Kadampa brand-color overlay palette (dark blue / beige / sky
-blue), and uses a 1024 px minimum width.
-
-### Switching profiles
-
-The same five other profiles ship the same way — replace `kadampa.org`
-in the URL above with `petapixel.com`, `atlasobscura.com`,
-`fstoppers.com`, `thephoblographer.com`, or `smashingmagazine.com`.
-See [the profile table](#sample-profiles) for what each one fetches.
-
-If you'd rather edit `appsettings.json` directly (so plain `sitepix`
-uses your chosen profile every run), it lives next to the binary:
-
-| Install method | `appsettings.json` location |
+| OS | Config path |
 |---|---|
-| Windows installer / winget / Chocolatey | `C:\Program Files\SitePix\appsettings.json` |
-| Windows portable zip | next to `SitePix.exe` in the extracted folder |
-| macOS Homebrew | `$(brew --prefix)/Cellar/sitepix/<version>/libexec/appsettings.json` |
-| macOS / Linux portable tarball | next to `SitePix` in the extracted folder |
-| Linux `.deb` / `.rpm` | `/opt/sitepix/appsettings.json` |
-| Linux AppImage | inside the AppImage — easier to use the URL above and pass it on the CLI |
-| Built from source | `dist/<rid>/appsettings.json` |
+| Windows | `%LOCALAPPDATA%\SitePix\appsettings.json` |
+| macOS | `~/Library/Application Support/SitePix/appsettings.json` |
+| Linux | `~/.local/share/SitePix/appsettings.json` |
 
-Each install also bundles the full `samples/` directory next to
-`appsettings.json`, so `sitepix samples/<name>.json` works without
-needing to `curl` anything.
+Subsequent runs (manual, scheduled, headless) read that file directly —
+the wizard does not fire again until you re-invoke it with `--setup`.
 
-### Profile schema
+### Picking a config without the wizard
+
+The config-resolution order on launch is:
+
+1. `sitepix --setup` → re-runs the wizard.
+2. `sitepix path/to/profile.json` → uses that file (absolute, CWD-relative,
+   or relative to the binary's directory).
+3. `<BaseDirectory>/appsettings.json` → for legacy installs that bundled
+   one (no longer shipped by default).
+4. `<BaseDirectory>/sitepix.json` → legacy filename fallback.
+5. `<LocalAppData>/SitePix/appsettings.json` → where the wizard saves.
+6. None of the above → wizard fires (if running in a terminal) or
+   prints a clear error pointing you to `--setup` or a sample.
+
+The 10 bundled samples live next to the binary under `samples/`, so
+`sitepix samples/<name>.json` works on any install path. Examples
+under [Bundled samples](#bundled-samples) below.
+
+### Configuration file reference
+
+Every key in the wizard-generated `appsettings.json` (and every sample
+under `samples/`) is documented below. The samples themselves are plain
+JSON without comments — this is the canonical schema doc.
+
+#### Source
+
+What to fetch and from where.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `Source.Provider` | string | (none → HTML mode) | One of: `metmuseum`, `smithsonian`, `loc`, `nasa`, `flickrcommons`, `nypl`. Omit (or leave `Source` unset entirely) to use HTML scraping mode driven by `StartPage` + `Scraper`. |
+| `Source.Query` | string | `""` | Provider-specific filter. Met / Smithsonian: free-text search. NASA / Flickr / LoC: keyword. NYPL: solr query. |
+| `Source.ApiKey` | string | `""` | Inline credential for sources that need one (Smithsonian, Flickr Commons, NYPL). Stored in your local config file; not committed by SitePix. |
+| `Source.ApiKeyEnv` | string | `""` | Name of an environment variable to read the key from instead of `ApiKey`. Useful if you'd rather not have the key on disk. |
+| `Source.OnlyHighlights` | bool | `false` | Met only — restrict to the museum's ~2,000 curated highlights. |
+| `Source.MaxImagesPerItem` | int | `1` | Met / Smithsonian / LoC — also pull alternate-view images for each object. |
+| `Source.Path` | string | `"photos"` | LoC only — search endpoint path. Set to e.g. `collections/farm-security-administration` to pin to a curated PD collection. |
+
+#### StartPage
 
 ```jsonc
-// Example: samples/petapixel.com.json — see samples/ for five other ready-to-use profiles.
-{
-  "StartPage": "https://petapixel.com/",
+"StartPage": "https://example.com/news"
+```
 
-  "Policies": {
-    "LinkDepth": 7,          // max articles per run
-    "RetentionDays": 7       // days to keep downloaded images
-  },
+Used by the HTML-scraping path as the index page to walk for article
+links. Informational when `Source.Provider` is set (API mode ignores it).
 
-  "Scraper": {
-    // Regex matched against each candidate article URL. {Year} is
-    // substituted with the current 4-digit year at runtime.
-    "UrlPattern": "/{Year}/",
+#### Policies
 
-    // Minimum image width (pixels). Smaller images are discarded.
-    "MinWidthPx": 1024,
+```jsonc
+"Policies": { "LinkDepth": 20, "RetentionDays": 7 }
+```
 
-    // Case-insensitive substrings — any image URL containing one of
-    // these is skipped (thumbnails, sponsor logos, etc.).
-    "ImageUrlExcludes": ["150x", "whatsapp-image", "book"],
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `Policies.LinkDepth` | int | `20` | Max items processed per run. API mode = items downloaded. HTML mode = articles visited (each may yield several images). |
+| `Policies.RetentionDays` | int | `7` | Files older than this in the save folder are deleted at the end of every run. Set high to disable pruning. |
 
-    // Ordered CSS selectors. The first one that matches on the article
-    // page defines the content scope that <img> tags are pulled from.
-    "ContentSelectors": [
-      "main article .entry-content",
-      "article .entry-content",
-      "main article",
-      "article",
-      "body"
-    ]
-  },
+#### Scraper
 
-  "Task Scheduler": {
-    "StartTime": "05:30",    // empty = don't register a scheduled task
-    "Id": "SitePix"          // optional override for task/plist/cron identifier
-  },
+Mostly relevant in HTML mode; `MinWidthPx` and `RequestDelayMs` also
+apply in API mode.
 
-  "Directories": {
-    "UseMyPictures": true,
-    "PhotoText": true,
-    "SubDirectory": "SitePix"
-  },
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `Scraper.UrlPattern` | string (regex) | `/{Year}/` | HTML mode — applied to each anchor on the start page. `{Year}` substitutes the current 4-digit year. |
+| `Scraper.MinWidthPx` | int | `1024` | Anything narrower is dropped after download. |
+| `Scraper.ImageUrlExcludes` | string[] | `[]` | Case-insensitive substring filters for image URLs (thumbnail markers, sponsor CDN paths, etc.). |
+| `Scraper.ContentSelectors` | string[] | `[ "main article .entry-content", … ]` | HTML mode — first matching CSS selector on the article page becomes the scope for `<img>` extraction. |
+| `Scraper.ContentExcludeSelectors` | string[] | `[]` | HTML mode — `<img>` tags inside any of these selectors are skipped (newsletter widgets, related-articles strips, …). |
+| `Scraper.SameOriginOnly` | bool | `false` | HTML mode — drop images served from third-party hosts (ad networks, embeds). |
+| `Scraper.RequestDelayMs` | int | `1500` | Milliseconds between consecutive item / article fetches. Avoids tripping per-IP rate limits. |
 
-  "PhotoText": {
-    "Font": "Palatino",
-    "DateInclude": true,
-    "DateFormat": "MM/dd",
-    "DatePrefix": " - ",
-    "ImageFileName": false,
-    "BrandColors": ["#224486", "#A99886", "#66B9C4"]
-  }
+#### Task Scheduler
+
+```jsonc
+"Task Scheduler": { "StartTime": "06:00", "Id": "SitePix-Met" }
+```
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `Task Scheduler.StartTime` | string | `""` | `HH:MM` 24-hour. Empty = no schedule registered. Setting this triggers Task Scheduler (Win) / launchd (mac) / cron (Linux) registration on the next run. |
+| `Task Scheduler.Id` | string | `"SitePix"` | Identifier so multiple SitePix profiles on one machine don't collide. |
+
+#### Directories
+
+```jsonc
+"Directories": {
+  "UseMyPictures": true,
+  "Base": "",
+  "SubDirectory": "MetMuseum",
+  "PhotoText": true
 }
 ```
 
-### Sample profiles
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `Directories.UseMyPictures` | bool | `true` | When `true`, save under the OS Pictures folder. When `false`, use `Base`. |
+| `Directories.Base` | string | `""` | Custom save root, used only when `UseMyPictures` is `false`. Combined with `SubDirectory`. |
+| `Directories.SubDirectory` | string | `"SitePix"` | Folder name appended under the chosen base. |
+| `Directories.PhotoText` | bool | `true` | Burn a text overlay (title + today's date) into each saved image. Toggling off saves clean originals. |
 
-Live in [`samples/`](samples/) — file basename is the source domain.
-Most popular first. Every profile is also published as a standalone
-download URL on the [latest release](https://github.com/alexreich/SitePix/releases/latest):
+#### PhotoText
 
-    https://github.com/alexreich/SitePix/releases/latest/download/<domain>.json
+Overlay rendering. Only relevant when `Directories.PhotoText` is `true`.
 
-| Profile | Source | Notes |
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `PhotoText.Font` | string | `"Helvetica Neue"` | Font family. Falls back to `SKTypeface.Default` if the requested family isn't installed. |
+| `PhotoText.TitleFontScale` | number | `1.0` | Multiplier applied to the auto-fitted title font size. |
+| `PhotoText.SubtitleFontScale` | number | `1.0` | Same for the subtitle (`og:description` in HTML mode; per-source metadata in API mode). |
+| `PhotoText.DateInclude` | bool | `true` | Append today's date to the title. |
+| `PhotoText.DateFormat` | string | `"MM/dd"` | .NET date-format string. |
+| `PhotoText.DatePrefix` | string | `" - "` | Inserted between the title and the date. |
+| `PhotoText.ImageFileName` | bool | `false` | Add the source filename on a second line (debugging aid). |
+| `PhotoText.PanelOpacity` | int (-1 to 255) | `210` | `-1` = no panel, no outline. `0` = outline only. `1..255` = dark panel opacity behind the text. |
+| `PhotoText.BrandColors` | string[] | `["#000000","#FFFFFF",…]` | Hex colors. SitePix picks whichever has the best contrast against the panel/background; an automatic black/white stroke is drawn around the glyphs for readability. |
+
+#### LogLevel
+
+Standard Microsoft.Extensions.Logging filter — `Default`, `Microsoft`,
+`System` keys, values `Information` / `Warning` / etc.
+
+### Bundled samples
+
+10 ready-to-use profiles ship next to the binary under
+[`samples/`](samples/), and each is published as a standalone download
+URL on the [latest release](https://github.com/alexreich/SitePix/releases/latest):
+
+    https://github.com/alexreich/SitePix/releases/latest/download/<filename>
+
+API-based sources (no HTML scraping; fast, polite, structured metadata):
+
+| Sample | Source | Auth | Notes |
+|---|---|---|---|
+| [`metmuseum.org.json`](samples/metmuseum.org.json) | [Met Museum Open Access](https://www.metmuseum.org/about-the-met/policies-and-documents/open-access) | none | Default. CC0, ~half a million artworks. |
+| [`si.edu.json`](samples/si.edu.json) | [Smithsonian Open Access](https://www.si.edu/openaccess) | free key — [api.data.gov](https://api.data.gov/signup/) | CC0, art + natural history (filtered to art-collection units by default). |
+| [`nasa.gov.json`](samples/nasa.gov.json) | [NASA Image Library](https://images.nasa.gov/) | none | Public-domain space and science imagery; per-item carve-outs noted in the sample header. |
+| [`loc.gov.json`](samples/loc.gov.json) | [Library of Congress photos](https://www.loc.gov/photos/) | none | Historical photographs; rights vary per item. |
+| [`flickr.com.json`](samples/flickr.com.json) | [Flickr Commons](https://www.flickr.com/commons) | free key — [Flickr API](https://www.flickr.com/services/apps/create/apply/) | "No known restrictions" institutional pool. |
+| [`nypl.org.json`](samples/nypl.org.json) | [NYPL Digital Collections](https://digitalcollections.nypl.org/) | free token — [api.repo.nypl.org](https://api.repo.nypl.org/) | NYPL's public-domain holdings. |
+
+HTML-scraping sources (Playwright-driven; for blogs and editorial sites):
+
+| Sample | Source | Notes |
 |---|---|---|
-| [`petapixel.com.json`](samples/petapixel.com.json) | [petapixel.com](https://petapixel.com) | Photography news, ~1.5M monthly readers. **Verified.** |
-| [`atlasobscura.com.json`](samples/atlasobscura.com.json) | [atlasobscura.com](https://www.atlasobscura.com) | Travel curiosities & long-form photo essays. **Verified.** |
-| [`fstoppers.com.json`](samples/fstoppers.com.json) | [fstoppers.com](https://fstoppers.com) | Photography community: news, originals, education. |
-| [`thephoblographer.com.json`](samples/thephoblographer.com.json) | [thephoblographer.com](https://www.thephoblographer.com) | Photo gear reviews & sample galleries. |
-| [`smashingmagazine.com.json`](samples/smashingmagazine.com.json) | [smashingmagazine.com](https://www.smashingmagazine.com) | Web design & code, screenshot-heavy. |
-| [`kadampa.org.json`](samples/kadampa.org.json) | [kadampa.org/news](https://kadampa.org/news) | Buddhist news (original profile). **Verified.** |
+| [`kadampa.org.json`](samples/kadampa.org.json) | [kadampa.org/news](https://kadampa.org/news) | Buddhist news. Original profile. |
+| [`petapixel.com.json`](samples/petapixel.com.json) | [petapixel.com](https://petapixel.com) | Photography news, ~1.5M monthly readers. |
+| [`atlasobscura.com.json`](samples/atlasobscura.com.json) | [atlasobscura.com](https://www.atlasobscura.com) | Travel curiosities and long-form photo essays. |
+| [`thephoblographer.com.json`](samples/thephoblographer.com.json) | [thephoblographer.com](https://www.thephoblographer.com) | Photo-gear reviews and sample galleries. |
 
-The `macos/install.sh` script ends with an interactive picker for these
-profiles (or pass `--source <domain>` for non-interactive — e.g.
-`--source petapixel.com`). Whichever profile is chosen is copied over
-`dist/macos/appsettings.json` so the binary picks it up next run. The
-settings file is fully commented — open it any time to tweak min-width,
-retention, font, brand colors, etc.
-
-### Brand colors
-
-`PhotoText:BrandColors` is an array of hex strings. For each text overlay
-SitePix picks the color with the best contrast against the background it's
-sitting on, then draws an automatic black/white stroke around the glyphs
-for readability over mixed-luminance photos.
+The wizard offers all of these (Met first, then the other API sources,
+then HTML scrapers). Drop your own `*.json` file into the bundled
+`samples/` directory and the wizard will list it too with a generic
+`(custom sample)` label.
 
 ### Reset visited history (start fresh)
 

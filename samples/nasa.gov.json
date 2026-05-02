@@ -1,12 +1,9 @@
 {
   "Source": {
-    "Provider": "smithsonian",
-    "Query": "",
-    "ApiKey": "",
-    "ApiKeyEnv": "SMITHSONIAN_API_KEY",
-    "MaxImagesPerItem": 1
+    "Provider": "nasa",
+    "Query": ""
   },
-  "StartPage": "https://www.si.edu/openaccess",
+  "StartPage": "https://images.nasa.gov/",
   "Policies": {
     "LinkDepth": 20,
     "RetentionDays": 7
@@ -14,19 +11,19 @@
   "Scraper": {
     "MinWidthPx": 1024,
     "ImageUrlExcludes": [
-      "_thumb",
-      "/thumb/"
+      "~thumb",
+      "~small"
     ],
     "RequestDelayMs": 500
   },
   "Task Scheduler": {
     "StartTime": "",
-    "Id": "SitePix-Smithsonian"
+    "Id": "SitePix-NASA"
   },
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
-    "SubDirectory": "Smithsonian",
+    "SubDirectory": "NASA",
     "PhotoText": true
   },
   "PhotoText": {
@@ -39,10 +36,10 @@
     "ImageFileName": false,
     "PanelOpacity": 210,
     "BrandColors": [
-      "#002D72",
-      "#FFC72C",
+      "#0B3D91",
+      "#FC3D21",
       "#FFFFFF",
-      "#7A0019"
+      "#000000"
     ]
   },
   "LogLevel": {

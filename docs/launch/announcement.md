@@ -11,24 +11,31 @@ managers have approved the submissions. Pick one, edit to taste, post.
 
 **Body:**
 
-I built SitePix as a desktop tool that pulls large photos from
-WordPress-style news blogs and drops them in a folder your OS screen
-saver or wallpaper rotation can point at. It's the cross-platform
-generalization of a Windows app I'd been running for myself for years
-to mirror photos from kadampa.org/news; once I rewrote it on .NET 10
-with SkiaSharp + Playwright I realized the same engine works on any
-WP site with dated permalinks, so I shipped six bundled profiles
-(petapixel.com, atlasobscura.com, fstoppers.com, thephoblographer.com,
-smashingmagazine.com, kadampa.org) and made everything else config-
-driven via JSON.
+I built SitePix as a desktop tool that pulls large photos into a folder
+your OS screen saver or wallpaper rotation can point at. It started as
+a Windows app I'd been running for myself for years to mirror photos
+from kadampa.org/news; once I rewrote it on .NET 10 with SkiaSharp +
+Playwright I realized the engine works on any site with dated
+permalinks, and the same loop also drives JSON catalog APIs, so I
+broadened it to ten bundled sources — six API catalogs (Met Museum
+Open Access, Smithsonian Open Access, NASA Image Library, Library of
+Congress, Flickr Commons, NYPL Digital Collections) and four HTML
+profiles (kadampa.org, petapixel.com, atlasobscura.com,
+thephoblographer.com).
 
 What it does on first run:
-1. Headless Chromium loads the index page and the first N articles.
-2. Pulls every <img> inside the article body, filters by min-width
-   and a per-site URL exclude list.
-3. Writes the article title + date + description as an outlined text
-   overlay on each image (so they're readable as standalone wallpapers).
-4. Registers itself with the host's native scheduler (Task Scheduler /
+1. Interactive wizard asks 7 short questions (source, API key if
+   needed, save folder, images per run, retention, overlay y/n,
+   schedule y/n + time) and writes a config to your local app-data
+   folder. Re-run any time with `--setup`.
+2. For API sources: hits the catalog endpoint, picks the largest
+   rendition per item, surfaces title + creator/date for the overlay.
+3. For HTML profiles: headless Chromium loads the index, pulls every
+   <img> inside the article body, filters by min-width and a per-site
+   URL exclude list.
+4. Writes the title + date as an outlined text overlay on each image
+   (so they're readable as standalone wallpapers).
+5. Registers itself with the host's native scheduler (Task Scheduler /
    launchd / cron / systemd user timer) for a daily refresh.
 
 Distribution: Windows installer + portable + winget + Chocolatey,
@@ -63,9 +70,11 @@ dated permalinks, and it'll mirror that site's article photos into
 `~/Pictures/<site>` daily, ready for your screen saver / wallpaper
 rotation to pick up.
 
-Six profiles bundled out of the box (petapixel.com, atlasobscura.com,
-fstoppers.com, thephoblographer.com, smashingmagazine.com, kadampa.org).
-Adding a new one is one JSON file — schema's in the README.
+Ten sources bundled out of the box — six API catalogs (Met Museum,
+Smithsonian, NASA, Library of Congress, Flickr Commons, NYPL) and four
+HTML profiles (kadampa.org, petapixel.com, atlasobscura.com,
+thephoblographer.com). First-run wizard walks you through picking
+one. Adding a new HTML site is one JSON file — schema's in the README.
 
 Native package managers: winget, Chocolatey, Homebrew, .deb, .rpm,
 AppImage. Auto-registers with the host scheduler so it just works.
@@ -144,35 +153,77 @@ trimmed a Playwright app successfully).
 
 ## Pre-launch checklist
 
-- [ ] v1.0.0 release CI green; release published with 14+ assets +
+### Release artifacts
+- [ ] Release CI green; release published with 14+ assets +
       SHA-256 sidecars
+- [ ] All 10 bundled samples included as standalone download URLs
+      (`releases/latest/download/<filename>.json`)
+- [ ] Binary ships with `samples/` directory next to it but **no**
+      bundled `appsettings.json` — first-run wizard fires for fresh
+      installs
+
+### First-run UX
+- [ ] Wizard runs cleanly on each OS (Win / mac / Linux) when the
+      binary is launched with no config:
+  - [ ] All 10 sources show up in the picker, with the API ones
+        first and Met as the default
+  - [ ] Picking a key-requiring source (Smithsonian / Flickr / NYPL)
+        prompts for the key and surfaces the signup URL
+  - [ ] Pressing Enter on every prompt produces a Met-default config
+        and downloads start
+  - [ ] `--setup` flag re-runs the wizard from anywhere
+  - [ ] Saved config lands at the OS-correct LocalAppData path
+- [ ] End-of-run hint ("Run with `--setup` to reconfigure") appears
+      on interactive runs but not on scheduled / piped runs
+
+### Repo hygiene
 - [ ] Repo is public (Settings → General → Visibility)
 - [ ] Default branch is `main`
 - [ ] LICENSE / README / CHANGELOG / CONTRIBUTING / SECURITY /
       CODE_OF_CONDUCT all present
+- [ ] README's "Configuration file reference" matches every field the
+      samples actually use
+- [ ] All 10 sample files are valid plain JSON (no `//` comments)
 - [ ] Issue templates render correctly (`New Issue` button on the
       Issues tab shows the bug + feature forms)
-- [ ] Topics set on the repo (Settings → About): `dotnet`, `wordpress`,
-      `screensaver`, `macos`, `windows`, `linux`, `playwright`,
-      `skiasharp`, `csharp`, `cli`
-- [ ] Repo description set: "Pulls large photos from WordPress-style
-      news blogs for use as a desktop/screen-saver source."
+- [ ] Topics set on the repo (Settings → About): `dotnet`,
+      `screensaver`, `wallpaper`, `macos`, `windows`, `linux`,
+      `playwright`, `skiasharp`, `csharp`, `cli`,
+      `open-access-api`, `met-museum`, `smithsonian`, `nasa`,
+      `library-of-congress`, `flickr-commons`, `nypl`
+- [ ] Repo description set: "Private-use CLI that pulls large photos
+      from open-access museum APIs and editorial blogs for your
+      desktop / screen-saver folder."
 - [ ] Repo website URL set (link to the `releases/latest` page)
 - [ ] Pinned the latest release on the repo home page
-- [ ] Chocolatey package re-tested and approved (was failing on
-      404 while repo private; should now pass)
+
+### Distribution
+- [ ] Chocolatey package re-tested and approved
 - [ ] winget submission opened (manual via Komac per
       packaging/README.md)
 - [ ] Homebrew tap repo `alexreich/homebrew-tap` created
-- [ ] Smoke-tested at least one install path on each OS:
+- [ ] Smoke-tested at least one install path on each OS, including
+      first-run wizard:
   - [ ] `winget install AlexReich.SitePix` (or Setup.exe download)
   - [ ] `brew install alexreich/tap/sitepix` (or tarball)
-  - [ ] `sudo dpkg -i sitepix_1.0.0_amd64.deb` (or AppImage)
+  - [ ] `sudo dpkg -i sitepix_<version>_amd64.deb` (or AppImage)
+
+### API sanity
+- [ ] Each API source pulls at least N=10 items in a fresh run:
+  - [ ] Met Museum (no key)
+  - [ ] Smithsonian (with a real api.data.gov key)
+  - [ ] NASA (no key)
+  - [ ] Library of Congress (no key)
+  - [ ] Flickr Commons (with a real Flickr key)
+  - [ ] NYPL (with a real NYPL token)
 
 ## Post-launch checklist
 
 - [ ] Watch GitHub Issues for the first 48 h
-- [ ] If a popular profile breaks (theme drift), patch in v1.0.1
-- [ ] Roll up the Dependabot PRs into v1.0.1 once stable
+- [ ] If a popular sample breaks (theme drift / API shape change),
+      patch in a follow-up release
+- [ ] Roll up the Dependabot PRs into the next patch once stable
 - [ ] Track stargazer count and incoming traffic via Insights →
       Traffic
+- [ ] Note which sources users pick most via opt-in telemetry (if
+      added later) or by reading discussions / issues

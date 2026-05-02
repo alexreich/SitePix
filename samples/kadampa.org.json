@@ -1,11 +1,9 @@
 {
   "StartPage": "https://kadampa.org/news",
-
   "Policies": {
     "LinkDepth": 7,
     "RetentionDays": 7
   },
-
   "Scraper": {
     "UrlPattern": "/{Year}/",
     "MinWidthPx": 1024,
@@ -27,19 +25,16 @@
       "body"
     ]
   },
-
   "Task Scheduler": {
     "StartTime": "",
     "Id": "SitePix-Kadampa"
   },
-
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
     "SubDirectory": "Kadampa",
     "PhotoText": true
   },
-
   "PhotoText": {
     "Font": "Palatino",
     "TitleFontScale": 1.0,
@@ -48,8 +43,6 @@
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
-    // Overlay mode for readability:
-    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
     "PanelOpacity": 210,
     "BrandColors": [
       "#224486",
@@ -60,7 +53,6 @@
       "#48ADF4"
     ]
   },
-
   "LogLevel": {
     "Default": "Information",
     "Microsoft": "Warning",

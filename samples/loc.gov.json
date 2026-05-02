@@ -1,32 +1,28 @@
 {
   "Source": {
-    "Provider": "smithsonian",
+    "Provider": "loc",
+    "Path": "photos",
     "Query": "",
-    "ApiKey": "",
-    "ApiKeyEnv": "SMITHSONIAN_API_KEY",
     "MaxImagesPerItem": 1
   },
-  "StartPage": "https://www.si.edu/openaccess",
+  "StartPage": "https://www.loc.gov/photos/",
   "Policies": {
     "LinkDepth": 20,
     "RetentionDays": 7
   },
   "Scraper": {
     "MinWidthPx": 1024,
-    "ImageUrlExcludes": [
-      "_thumb",
-      "/thumb/"
-    ],
+    "ImageUrlExcludes": [],
     "RequestDelayMs": 500
   },
   "Task Scheduler": {
     "StartTime": "",
-    "Id": "SitePix-Smithsonian"
+    "Id": "SitePix-LoC"
   },
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
-    "SubDirectory": "Smithsonian",
+    "SubDirectory": "LibraryOfCongress",
     "PhotoText": true
   },
   "PhotoText": {
@@ -39,10 +35,10 @@
     "ImageFileName": false,
     "PanelOpacity": 210,
     "BrandColors": [
-      "#002D72",
-      "#FFC72C",
+      "#0D2240",
+      "#A91D2D",
       "#FFFFFF",
-      "#7A0019"
+      "#C0A062"
     ]
   },
   "LogLevel": {

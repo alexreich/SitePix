@@ -1,32 +1,28 @@
 {
   "Source": {
-    "Provider": "smithsonian",
-    "Query": "",
+    "Provider": "flickrcommons",
     "ApiKey": "",
-    "ApiKeyEnv": "SMITHSONIAN_API_KEY",
-    "MaxImagesPerItem": 1
+    "ApiKeyEnv": "FLICKR_API_KEY",
+    "Query": ""
   },
-  "StartPage": "https://www.si.edu/openaccess",
+  "StartPage": "https://www.flickr.com/commons",
   "Policies": {
     "LinkDepth": 20,
     "RetentionDays": 7
   },
   "Scraper": {
     "MinWidthPx": 1024,
-    "ImageUrlExcludes": [
-      "_thumb",
-      "/thumb/"
-    ],
+    "ImageUrlExcludes": [],
     "RequestDelayMs": 500
   },
   "Task Scheduler": {
     "StartTime": "",
-    "Id": "SitePix-Smithsonian"
+    "Id": "SitePix-FlickrCommons"
   },
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
-    "SubDirectory": "Smithsonian",
+    "SubDirectory": "FlickrCommons",
     "PhotoText": true
   },
   "PhotoText": {
@@ -39,10 +35,10 @@
     "ImageFileName": false,
     "PanelOpacity": 210,
     "BrandColors": [
-      "#002D72",
-      "#FFC72C",
+      "#FF0084",
+      "#0063DC",
       "#FFFFFF",
-      "#7A0019"
+      "#1A1A1A"
     ]
   },
   "LogLevel": {

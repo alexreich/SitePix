@@ -1,19 +1,12 @@
 {
   "StartPage": "https://petapixel.com/",
-
   "Policies": {
     "LinkDepth": 5,
     "RetentionDays": 7
   },
-
   "Scraper": {
     "UrlPattern": "/{Year}/\\d{2}/\\d{2}/",
     "MinWidthPx": 1200,
-
-    // Substring match against the image URL, case-insensitive.
-    // PetaPixel inlines a lot of promotional graphics, store badges, and
-    // social/share artifacts that are larger than MinWidthPx but aren't
-    // editorial — listed here so they're dropped before download.
     "ImageUrlExcludes": [
       "-150x",
       "-300x",
@@ -34,7 +27,6 @@
       "googletagmanager",
       "googlesyndication"
     ],
-
     "ContentSelectors": [
       "main article .entry-content",
       "article .entry-content",
@@ -43,10 +35,6 @@
       ".post-content",
       "body"
     ],
-
-    // Anything inside one of these selectors (within the content scope) is
-    // skipped — keeps related-articles widgets, share bars, author bios,
-    // newsletter forms and ad units from polluting the image set.
     "ContentExcludeSelectors": [
       ".related-posts",
       ".jp-relatedposts",
@@ -77,25 +65,18 @@
       "aside",
       "[role=complementary]"
     ],
-
-    // Drop images served from third-party hosts (ad networks, trackers,
-    // syndicated embeds). PetaPixel's editorial photos all live on
-    // petapixel.com, so this is a strong signal.
     "SameOriginOnly": true
   },
-
   "Task Scheduler": {
     "StartTime": "",
     "Id": "SitePix-PetaPixel"
   },
-
   "Directories": {
     "UseMyPictures": true,
     "Base": "",
     "SubDirectory": "PetaPixel",
     "PhotoText": true
   },
-
   "PhotoText": {
     "Font": "Helvetica Neue",
     "TitleFontScale": 1.0,
@@ -104,8 +85,6 @@
     "DateFormat": "MM/dd",
     "DatePrefix": " - ",
     "ImageFileName": false,
-    // Overlay mode for readability:
-    // -1 = no panel and no outline, 0 = outline only, 1..255 = panel opacity.
     "PanelOpacity": 210,
     "BrandColors": [
       "#111111",
@@ -115,7 +94,6 @@
       "#4A90E2"
     ]
   },
-
   "LogLevel": {
     "Default": "Information",
     "Microsoft": "Warning",

@@ -6,13 +6,71 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **First-run interactive setup wizard** (`SitePix/SetupWizard.cs`).
+  Asks 7 short questions: source, API key (if needed), save folder,
+  images per run, retention days, text overlay, daily schedule. Writes
+  a config to the OS-appropriate user-app-data folder
+  (`%LOCALAPPDATA%\SitePix\appsettings.json` on Windows;
+  `~/Library/Application Support/SitePix/` on macOS;
+  `~/.local/share/SitePix/` on Linux). Re-run any time with
+  `sitepix --setup`. The wizard discovers all `*.json` files under the
+  bundled `samples/` directory and offers them with curated descriptions
+  (custom samples are picked up automatically with a generic label).
+- **API-based sources.** New JSON-API path runs alongside the existing
+  HTML scraping path; activates when `Source:Provider` is set in the
+  config. Six providers shipped: Met Museum Open Access (`metmuseum`),
+  Smithsonian Open Access (`smithsonian`), Library of Congress (`loc`),
+  NASA Image Library (`nasa`), Flickr Commons (`flickrcommons`), NYPL
+  Digital Collections (`nypl`). Each picks the largest available
+  rendition per item and surfaces title + creator/date metadata for
+  the overlay.
+- **End-of-run hint** on interactive launches: prints the save folder
+  path and reminds the user about `--setup`. Quiet on scheduled or
+  piped runs.
+
 ### Changed
+- **No default `appsettings.json` is bundled with the binary.** Fresh
+  installs hit the setup wizard on first launch instead of running
+  silently against a baked-in config. The legacy
+  `<BaseDirectory>/appsettings.json` and `<BaseDirectory>/sitepix.json`
+  paths are still respected if present (back-compat for existing
+  installs); the wizard's output at `<LocalAppData>/SitePix/appsettings.json`
+  is the new canonical location.
+- **Sample configs are now plain JSON** (no `//` line comments, no
+  `_comment_*` keys). The README's "Configuration file reference"
+  section is now the canonical schema doc — every field the engine
+  reads is documented there with type, default, and notes.
+- **Removed sources that explicitly require automated-access opt-in or
+  whose primary content isn't photo-oriented**:
+  `samples/fstoppers.com.json` and `samples/smashingmagazine.com.json`.
+- Removed bot-detection-evasion code from the Playwright path
+  (navigator/plugins/chrome.runtime masking, automation-flag stripping,
+  storage-state persistence). The remaining headers are standard
+  browser fingerprint shape only — no fingerprint-evasion-shaped logic.
 - Chocolatey nuspec: added `iconUrl` (CDN-cached via jsDelivr to a
   committed `packaging/chocolatey/icon.png`) and removed redundant
   `projectSourceUrl` (the GitHub repo IS the project home — having
   identical `projectUrl` and `projectSourceUrl` is what the Choco
   validator nudges against). Resolves the two Guideline notes from
-  v1.0.0 moderator feedback. Will surface in the next release.
+  v1.0.0 moderator feedback.
+
+### Fixed
+- Filename collisions in API mode: catalogs that serve images via
+  query-string endpoints (Smithsonian's `?id=NAME.jpg`, LoC IIIF's
+  `default.jpg`) used to clobber each other inside one run because
+  `Path.GetFileName` produced the same local name for every item.
+  Filenames now include the API item's unique ID.
+- Config files served from no-extension URLs are auto-detected (parse
+  `?id=NAME.jpg` from the query string; fall back to `.jpg`) so the
+  retention sweep doesn't immediately delete fresh downloads.
+
+### Security
+- Added `.verify/`, `*.local.json`, and `*.secret.json` to `.gitignore`
+  so wizard-generated configs containing API keys never accidentally
+  enter version control. The supported pattern for production use is
+  `Source:ApiKeyEnv` pointing at an environment variable instead of
+  inline `Source:ApiKey`.
 
 ## [1.0.0] - 2026-04-26
 
