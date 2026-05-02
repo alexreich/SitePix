@@ -96,7 +96,7 @@ for slideshow / screen-saver / wallpaper use; nothing is re-published
 anywhere unless you do that yourself.
 
 The first time you run `sitepix` on a fresh install, an interactive
-wizard asks seven short questions:
+wizard asks eight short questions:
 
 1. **Source** — Met Museum (default), Smithsonian, NASA, Library of
    Congress, Flickr Commons, NYPL, plus four HTML-scrape profiles
@@ -111,6 +111,9 @@ wizard asks seven short questions:
 5. **Retention days** — older files are pruned automatically.
 6. **Text overlay** — burn the image title + today's date into each photo.
 7. **Daily schedule** — register a Task Scheduler / launchd / cron job.
+8. **Native desktop slideshow** — point your OS's built-in wallpaper
+   slideshow at the save folder. See [Desktop slideshow setup](#desktop-slideshow-setup)
+   below for what each platform does.
 
 Re-run the wizard at any time with:
 
@@ -338,6 +341,27 @@ Multiple profiles on one machine can use distinct identifiers via
 marker.
 
 ---
+
+## Desktop slideshow setup
+
+If you answered "yes" to the wizard's final question, SitePix already
+pointed your OS at the save folder. Otherwise, set it up by hand:
+
+- **Windows**: Settings → Personalization → Background → Personalize your
+  background → **Slideshow** → browse to the configured image directory.
+  *(The wizard automates this via the `IDesktopWallpaper` shell API and
+  sets a 30-minute rotation; tweak the interval and shuffle in the same
+  Settings pane.)*
+- **macOS**: System Settings → Wallpaper → Add Folder… → pick
+  `~/Pictures/SitePix`, then turn on **Change picture**. *(The wizard
+  sets the picture source via `osascript` and opens the Wallpaper pane
+  so you can flip "Change picture" on — Sonoma+ requires that toggle to
+  rotate.)*
+- **Linux**: GNOME picks up a generated `.sitepix-slideshow.xml` in the
+  save folder and rotates every 30 minutes; the file is regenerated at
+  the end of every SitePix run so newly-downloaded images join the
+  rotation automatically. Other desktop environments (KDE, XFCE, …): use
+  your DE's wallpaper settings and point them at the save folder.
 
 ## Screen saver setup
 

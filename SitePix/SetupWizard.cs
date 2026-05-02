@@ -204,6 +204,12 @@ internal static class SetupWizard
         Console.Write("Schedule SitePix to run automatically every day? [y/N]: ");
         string schedAns = (Console.ReadLine() ?? "").Trim().ToLowerInvariant();
         bool wantSchedule = schedAns == "y" || schedAns == "yes";
+
+        // ─── 8. Native OS slideshow ──────────────────────────────────────────
+        Console.WriteLine();
+        Console.Write("Set this folder as your desktop wallpaper slideshow now? [y/N]: ");
+        string slideAns = (Console.ReadLine() ?? "").Trim().ToLowerInvariant();
+        bool wantSlideshow = slideAns == "y" || slideAns == "yes";
         string scheduleTime = "";
         if (wantSchedule)
         {
@@ -244,6 +250,14 @@ internal static class SetupWizard
         Console.WriteLine($"  Daily schedule:        {(wantSchedule ? scheduleTime : "off")}");
         Console.WriteLine($"  Config saved to:       {outPath}");
         Console.WriteLine();
+
+        if (wantSlideshow)
+        {
+            string result = SlideshowConfigurator.Configure(imgDir);
+            Console.WriteLine(result);
+            Console.WriteLine();
+        }
+
         Console.WriteLine("Edit the config file directly to tweak any setting later, or re-run with --setup.");
         Console.WriteLine("Every field is documented in the README's Configuration section.");
         Console.WriteLine();

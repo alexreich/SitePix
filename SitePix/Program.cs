@@ -488,6 +488,11 @@ foreach (string file in files)
 // Cleanup again
 urlLogger.Cleanup(30);
 
+// Linux GNOME only: regenerate the slideshow XML so today's downloads join
+// the rotation. No-op everywhere else, and no-op on Linux unless the wizard
+// has previously wired this folder up.
+SlideshowConfigurator.RefreshLinuxIfConfigured(baseDirectory);
+
 // Final hint for interactive runs only — keeps scheduled / piped runs quiet.
 if (!Console.IsInputRedirected)
 {
