@@ -24,7 +24,6 @@ OpenGraph conventions.
 | Method | Command |
 |---|---|
 | winget | `winget install AlexReich.SitePix` |
-| Chocolatey | `choco install sitepix` |
 | Installer exe | [Download from Releases](https://github.com/alexreich/SitePix/releases/latest), run `SitePix-Setup-<version>.exe` |
 | Portable zip | Same Releases page — `SitePix-<version>-win-x64-portable.zip` |
 
