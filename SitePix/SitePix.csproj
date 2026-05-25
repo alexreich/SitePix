@@ -43,7 +43,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.7" />
     <PackageReference Include="Microsoft.Playwright" Version="1.59.0" />
-    <PackageReference Include="SkiaSharp" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
   <!-- Windows-only: Task Scheduler integration. The package isn't restored on
